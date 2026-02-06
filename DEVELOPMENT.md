@@ -43,27 +43,13 @@ git --version
 - Auto Rename Tag
 - Path Intellisense
 
-**settings.json 例:**
-```json
-{
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
-  },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "tailwindCSS.experimental.classRegex": [
-    ["class:\\s*?[\"'`]([^\"'`]*).*?[\"'`]", "[\"'`]([^\"'`]*).*?[\"'`]"]
-  ]
-}
-```
 
 ### プロジェクトのクローンとセットアップ
 
 ```bash
 # リポジトリをクローン
 git clone <repository-url>
-cd netomariweb
+cd netomari
 
 # 依存関係のインストール
 npm install

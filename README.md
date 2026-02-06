@@ -352,20 +352,44 @@ Supabaseの情報は、プロジェクトダッシュボードの「Settings > A
 
 ### 4. データベースのセットアップ
 
-Supabaseダッシュボードで「SQL Editor」を開き、`supabase/migrations/consolidated_schema.sql`の内容を実行します。
+**重要:** このプロジェクトのSupabaseデータベースは既にセットアップ済みです。
 
-または、Supabase CLIを使用：
+現在のデータベースには以下が含まれています：
+- **32のテーブル** - users, vehicles, partners, stories, reservations等
+- **すべてのRow Level Security (RLS)ポリシー**
+- **17の関数とトリガー** - ランクシステム、自動更新等
+- **100以上のインデックス** - パフォーマンス最適化
+- **サンプルデータ** - 開発・デモ用
+
+#### 既存プロジェクトを使用する場合
+
+`.env`ファイルに既存のSupabase接続情報を設定するだけで使用できます。
+
+#### 新しいSupabaseプロジェクトにセットアップする場合
+
+**簡単な方法: エクスポートスクリプトを使用**
 
 ```bash
-# Supabase CLIのインストール
+# Supabase CLIをインストール（未インストールの場合）
 npm install -g supabase
 
-# プロジェクトとリンク
-supabase link --project-ref your-project-ref
+# 現在のプロジェクトにリンク
+supabase link --project-ref your-current-project-ref
 
-# マイグレーションの適用
-supabase db push
+# スキーマをエクスポート
+./scripts/export-schema.sh
+
+# エクスポートされたファイルを新しいプロジェクトにインポート
+# 詳細は database_export_*/README.md を参照
 ```
+
+**詳細な手順**
+
+完全なマイグレーション手順については、**[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** を参照してください。
+
+**スキーマ情報**
+
+詳細なデータベーススキーマ情報は **[DATABASE_SCHEMA.md](./supabase/DATABASE_SCHEMA.md)** を参照してください。
 
 ### 5. 開発サーバーの起動
 

@@ -40,7 +40,7 @@ export default function Header() {
               </Link>
             )}
             <Link to="/partners" className="text-gray-700 hover:text-blue-600 transition">
-              協力店
+              パートナー
             </Link>
             <Link to="/routes" className="text-gray-700 hover:text-blue-600 transition">
               寄り道ルート
