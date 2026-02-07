@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import type { Database } from '../lib/database.types';
+import { toast } from 'sonner';
+import {
+  PartnerRepository,
+  useQuery,
+  useRepository,
+} from '../lib/data-access';
+import { logger } from '../lib/logger';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 
@@ -29,36 +36,19 @@ const PARTNER_TYPES = [
 
 export default function PartnerManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [loadingPartners, setLoadingPartners] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadPartners();
-    }
-  }, [user, isAdmin, isStaff]);
+  // リポジトリインスタンス
+  const partnerRepo = useRepository(PartnerRepository);
 
-  const loadPartners = async () => {
-    try {
-      let query = supabase
-        .from('partners')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setPartners(data || []);
-    } catch (error) {
-      console.error('Error loading partners:', error);
-    } finally {
-      setLoadingPartners(false);
-    }
-  };
+  // 協力店一覧を取得
+  const { data: partners, loading: loadingPartners, refetch } = useQuery<Partner[]>(
+    async () => partnerRepo.findAll(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const handleDelete = async () => {
     if (!selectedPartner) return;
@@ -72,14 +62,14 @@ export default function PartnerManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedPartner(null);
-      loadPartners();
+      refetch();
     } catch (error) {
-      console.error('Error deleting partner:', error);
-      alert('協力店の削除に失敗しました');
+      logger.error('Error deleting partner:', error);
+      toast.error('協力店の削除に失敗しました');
     }
   };
 
-  const filteredPartners = partners.filter((partner) => {
+  const filteredPartners = (partners || []).filter((partner) => {
     if (filter !== 'all' && partner.type !== filter) return false;
 
     if (!searchTerm) return true;

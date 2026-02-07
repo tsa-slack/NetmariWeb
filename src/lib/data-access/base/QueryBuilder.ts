@@ -6,6 +6,7 @@ import { Result as ResultHelper } from './types';
  * クエリビルダー
  * 型安全なクエリ構築を提供
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class QueryBuilder<T = any> {
     private filters: FilterCondition[] = [];
     private selectFields: string = '*';
@@ -28,6 +29,7 @@ export class QueryBuilder<T = any> {
     /**
      * フィルター条件を追加
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     where(field: string, operator: FilterOperator, value: any): this {
         this.filters.push({ field, operator, value });
         return this;
@@ -36,6 +38,7 @@ export class QueryBuilder<T = any> {
     /**
      * 等価条件（ショートハンド）
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     whereEqual(field: string, value: any): this {
         return this.where(field, 'eq', value);
     }
@@ -43,6 +46,7 @@ export class QueryBuilder<T = any> {
     /**
      * WHERE IN句を追加
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     whereIn(field: string, values: any[]): this {
         return this.where(field, 'in', values);
     }
@@ -85,7 +89,7 @@ export class QueryBuilder<T = any> {
      */
     async execute(): Promise<Result<T[]>> {
         try {
-            let query = (supabase.from(this.tableName) as any).select(
+            let query = (supabase.from(this.tableName)).select(
                 this.buildSelectString()
             );
 
@@ -130,7 +134,7 @@ export class QueryBuilder<T = any> {
      */
     async single(): Promise<Result<T | null>> {
         try {
-            let query = (supabase.from(this.tableName) as any).select(
+            let query = (supabase.from(this.tableName)).select(
                 this.buildSelectString()
             );
 
@@ -155,7 +159,7 @@ export class QueryBuilder<T = any> {
      */
     async count(): Promise<Result<number>> {
         try {
-            let query = (supabase.from(this.tableName) as any).select('*', {
+            let query = (supabase.from(this.tableName)).select('*', {
                 count: 'exact',
                 head: true,
             });
@@ -193,6 +197,7 @@ export class QueryBuilder<T = any> {
     /**
      * フィルターを適用
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private applyFilter(query: any, filter: FilterCondition): any {
         const { field, operator, value } = filter;
 

@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { Car, Save, ArrowLeft } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface VehicleFormData {
   name: string;
@@ -37,23 +40,15 @@ export default function SaleVehicleFormPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
 
-  useEffect(() => {
-    if (isEditing && user && (isAdmin || isStaff)) {
-      loadVehicleData();
-    }
-  }, [id, user, isAdmin, isStaff]);
+  // 編集時に車両データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading: loadingData } = useQuery<any>(
+    async () => {
+      if (!id) return { success: true, data: null };
 
-  const loadVehicleData = async () => {
-    if (!id) return;
-
-    setLoadingData(true);
-    try {
       const { data, error } = await (supabase
-
-        .from('vehicles') as any)
-
+        .from('vehicles'))
         .select('*')
         .eq('id', id!)
         .single();
@@ -73,19 +68,17 @@ export default function SaleVehicleFormPage() {
           images: Array.isArray(data.images) ? data.images : [],
         });
       }
-    } catch (error) {
-      console.error('Error loading vehicle:', error);
-      alert('車両データの読み込みに失敗しました');
-    } finally {
-      setLoadingData(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(isEditing && user && (isAdmin || isStaff)) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.manufacturer) {
-      alert('必須項目を入力してください');
+      toast.warning('必須項目を入力してください');
       return;
     }
 
@@ -107,28 +100,28 @@ export default function SaleVehicleFormPage() {
       if (isEditing) {
         const { error } = await (supabase
 
-          .from('vehicles') as any)
+          .from('vehicles'))
 
           .update(vehicleData)
           .eq('id', id!);
 
         if (error) throw error;
-        alert('車両を更新しました');
+        toast.success('車両を更新しました');
       } else {
         const { error } = await (supabase
 
-          .from('vehicles') as any)
+          .from('vehicles'))
 
           .insert(vehicleData);
 
         if (error) throw error;
-        alert('車両を登録しました');
+        toast.success('車両を登録しました');
       }
 
       navigate('/admin/sale-vehicles');
     } catch (error) {
-      console.error('Error saving vehicle:', error);
-      alert('車両の保存に失敗しました');
+      logger.error('Error saving vehicle:', error);
+      toast.error('車両の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }

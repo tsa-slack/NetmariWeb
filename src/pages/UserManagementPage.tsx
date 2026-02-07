@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -13,6 +13,9 @@ import {
   Mail,
   Edit,
 } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface UserProfile {
   id: string;
@@ -26,8 +29,6 @@ interface UserProfile {
 
 export default function UserManagementPage() {
   const { user, loading, isAdmin } = useAuth();
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
   const [filter, setFilter] = useState<'all' | 'Members' | 'Admin' | 'Staff' | 'Partners'>(
     'all'
   );
@@ -35,14 +36,10 @@ export default function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [newRole, setNewRole] = useState('');
 
-  useEffect(() => {
-    if (user && isAdmin) {
-      loadUsers();
-    }
-  }, [user, isAdmin, filter]);
-
-  const loadUsers = async () => {
-    try {
+  // ユーザー一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: users, loading: loadingUsers, refetch } = useQuery<any[]>(
+    async () => {
       let query = supabase
         .from('users')
         .select('id, email, first_name, last_name, phone_number, role, created_at')
@@ -53,22 +50,18 @@ export default function UserManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setUsers(data || []);
-    } catch (error) {
-      console.error('Error loading users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && isAdmin) }
+  );
 
   const updateUserRole = async () => {
     if (!editingUser || !newRole) return;
 
     try {
       const { error } = await (supabase
-        .from('users') as any)
+        .from('users'))
         .update({ role: newRole })
         .eq('id', editingUser.id);
 
@@ -76,14 +69,15 @@ export default function UserManagementPage() {
 
       setEditingUser(null);
       setNewRole('');
-      loadUsers();
+      refetch();
     } catch (error) {
-      console.error('Error updating user role:', error);
-      alert('ロールの変更に失敗しました');
+      logger.error('Error updating user role:', error);
+      toast.error('ロールの変更に失敗しました');
     }
   };
 
-  const filteredUsers = users.filter((u) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredUsers = (users || []).filter((u: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     const fullName = `${u.last_name} ${u.first_name}`.trim();
@@ -171,7 +165,7 @@ export default function UserManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>

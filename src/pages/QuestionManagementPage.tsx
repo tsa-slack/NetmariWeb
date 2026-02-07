@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -16,6 +16,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface Question {
   id: string;
@@ -35,21 +38,15 @@ interface Question {
 
 export default function QuestionManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [filter, setFilter] = useState<'all' | 'Open' | 'Resolved' | 'Closed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadQuestions();
-    }
-  }, [user, isAdmin, isStaff, filter]);
-
-  const loadQuestions = async () => {
-    try {
+  // 質問一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: questions, loading: loadingQuestions, refetch } = useQuery<any[]>(
+    async () => {
       let query = supabase
         .from('questions')
         .select(`
@@ -63,52 +60,45 @@ export default function QuestionManagementPage() {
       }
 
       const { data: questionsData, error: questionsError } = await query;
-
       if (questionsError) throw questionsError;
 
       const { data: answerCounts, error: answersError } = await (supabase
-
-
-        .from('answers') as any)
-
-
+        .from('answers'))
         .select('question_id');
 
       if (answersError) throw answersError;
 
       const answerCountMap: Record<string, number> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       answerCounts?.forEach((answer: any) => {
         answerCountMap[answer.question_id] = (answerCountMap[answer.question_id] || 0) + 1;
       });
 
-      const questionsWithCounts = (questionsData || []).map((q: any) => {
-        return {
-          ...(q as any),
-          answer_count: answerCountMap[(q as any).id] || 0,
-        };
-      });
-      setQuestions(questionsWithCounts);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-    } finally {
-      setLoadingQuestions(false);
-    }
-  };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const questionsWithCounts = (questionsData || []).map((q: any) => ({
+        ...q,
+        answer_count: answerCountMap[q.id] || 0,
+      }));
+
+      return { success: true, data: questionsWithCounts };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const updateStatus = async (questionId: string, newStatus: string) => {
     try {
       const { error } = await (supabase
 
-        .from('questions') as any)
+        .from('questions'))
 
         .update({ status: newStatus })
         .eq('id', questionId!);
 
       if (error) throw error;
-      loadQuestions();
+      refetch();
     } catch (error) {
-      console.error('Error updating question:', error);
-      alert('ステータスの変更に失敗しました');
+      logger.error('Error updating question:', error);
+      toast.error('ステータスの変更に失敗しました');
     }
   };
 
@@ -124,14 +114,15 @@ export default function QuestionManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedQuestion(null);
-      loadQuestions();
+      refetch();
     } catch (error) {
-      console.error('Error deleting question:', error);
-      alert('質問の削除に失敗しました');
+      logger.error('Error deleting question:', error);
+      toast.error('質問の削除に失敗しました');
     }
   };
 
-  const filteredQuestions = questions.filter((question) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredQuestions = (questions || []).filter((question: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -220,7 +211,7 @@ export default function QuestionManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>

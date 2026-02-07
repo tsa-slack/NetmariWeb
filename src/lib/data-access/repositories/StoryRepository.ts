@@ -36,6 +36,7 @@ export class StoryRepository extends BaseRepository<'stories'> {
     /**
      * 公開済みストーリーを取得（著者情報付き）
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findPublishedWithAuthor(): Promise<Result<any[]>> {
         try {
             const { data, error } = await supabase
@@ -60,10 +61,11 @@ export class StoryRepository extends BaseRepository<'stories'> {
     /**
      * IDでストーリーを取得（著者情報付き）- 詳細ページ用
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByIdWithAuthor(id: string): Promise<Result<any>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select(`
           *,
           users!stories_author_id_fkey (first_name, last_name)

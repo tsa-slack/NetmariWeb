@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 export default function QuestionFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,19 +19,13 @@ export default function QuestionFormPage() {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
 
-  useEffect(() => {
-    if (id && user) {
-      loadQuestion();
-    }
-  }, [id, user]);
-
-  const loadQuestion = async () => {
-    try {
-      setLoading(true);
+  // 編集時に質問データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  const { loading: _loadingQuestion } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('questions') as any)
-
+        .from('questions'))
         .select('*')
         .eq('id', id!)
         .eq('author_id', user!.id)
@@ -41,18 +38,17 @@ export default function QuestionFormPage() {
         setContent(data.content);
         setCategory(data.category || '');
       }
-    } catch (error) {
-      console.error('Error loading question:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(id && user) }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim() || !content.trim()) {
-      alert('タイトルと内容を入力してください');
+      toast.warning('タイトルと内容を入力してください');
       return;
     }
 
@@ -75,19 +71,19 @@ export default function QuestionFormPage() {
       if (id) {
         const { error } = await (supabase
 
-          .from('questions') as any)
+          .from('questions'))
 
           .update(questionData)
           .eq('id', id!);
 
         if (error) throw error;
 
-        alert('質問を更新しました');
+        toast.success('質問を更新しました');
         navigate(`/portal/questions/${id}`);
       } else {
         const { data, error } = await (supabase
 
-          .from('questions') as any)
+          .from('questions'))
 
           .insert(questionData)
           .select()
@@ -95,12 +91,12 @@ export default function QuestionFormPage() {
 
         if (error) throw error;
 
-        alert('質問を投稿しました');
+        toast.success('質問を投稿しました');
         navigate(`/portal/questions/${data.id}`);
       }
     } catch (error) {
-      console.error('Error saving question:', error);
-      alert('質問の保存に失敗しました');
+      logger.error('Error saving question:', error);
+      toast.error('質問の保存に失敗しました');
     } finally {
       setLoading(false);
     }

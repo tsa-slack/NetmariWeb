@@ -1,0 +1,72 @@
+import type { Database, Json } from '../../lib/database.types';
+import type { Row } from '../../lib/data-access/base/types';
+
+export type Review = Database['public']['Tables']['reviews']['Row'] & {
+    partner_name?: string;
+};
+export type UserProfile = Database['public']['Tables']['users']['Row'];
+export type Reservation = Database['public']['Tables']['reservations']['Row'] & {
+    rental_vehicle?: {
+        location?: string;
+        vehicle?: {
+            name?: string;
+            manufacturer?: string;
+            images?: string[];
+        };
+    };
+};
+export type PartnerFavorite = Database['public']['Tables']['partner_favorites']['Row'] & {
+    partner?: {
+        name?: string;
+        description?: string;
+        address?: string;
+        images?: Json;
+        type?: string;
+    };
+};
+
+export type VehicleFavorite = {
+    id: string;
+    user_id: string;
+    vehicle_id: string;
+    created_at: string;
+    vehicle?: {
+        name?: string;
+        manufacturer?: string;
+        type?: string;
+        images?: Json;
+        price?: number;
+        status?: string;
+    };
+};
+
+export type StoryFavorite = {
+    id: string;
+    user_id: string;
+    story_id: string;
+    created_at: string;
+    story?: {
+        title?: string;
+        excerpt?: string;
+        cover_image?: string;
+        author_id?: string;
+    };
+};
+
+export type UserRoute = Database['public']['Tables']['routes']['Row'];
+
+export type RankProgress = {
+    totalSpent: number;
+    totalLikes: number;
+    totalPosts: number;
+    currentRank: string;
+    nextRank: string | null;
+    discountRate: number;
+    nextRequirements: {
+        min_amount: number;
+        min_likes: number;
+        min_posts: number;
+    } | null;
+};
+
+export type MyStory = Row<'stories'>;

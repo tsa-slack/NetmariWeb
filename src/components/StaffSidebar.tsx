@@ -10,6 +10,7 @@ import {
   Clock
 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { logger } from '../lib/logger';
 
 type EquipmentPreparation = {
   id: string;
@@ -115,7 +116,7 @@ export default function StaffSidebar() {
       setTomorrowCheckout(tomorrowCheckoutData || []);
       setTodayReturn(todayReturnData || []);
     } catch (error) {
-      console.error('Error loading reservations:', error);
+      logger.error('Error loading reservations:', error);
     } finally {
       setLoading(false);
     }
@@ -142,7 +143,7 @@ export default function StaffSidebar() {
   const handleEquipmentToggle = async (prepId: string, currentPrepared: boolean) => {
     try {
       const { error } = await (supabase
-        .from('equipment_preparations') as any)
+        .from('equipment_preparations'))
         .update({
           prepared: !currentPrepared,
           prepared_at: !currentPrepared ? new Date().toISOString() : null
@@ -153,7 +154,7 @@ export default function StaffSidebar() {
 
       await loadReservations();
     } catch (error) {
-      console.error('Error updating equipment preparation:', error);
+      logger.error('Error updating equipment preparation:', error);
     }
   };
 

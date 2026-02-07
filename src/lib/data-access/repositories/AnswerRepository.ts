@@ -14,6 +14,7 @@ export class AnswerRepository extends BaseRepository<'answers'> {
     /**
      * 質問の回答を著者情報付きで取得
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByQuestionWithAuthor(questionId: string): Promise<Result<any[]>> {
         try {
             const { data, error } = await supabase

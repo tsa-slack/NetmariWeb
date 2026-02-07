@@ -5,109 +5,66 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Heart, Eye, MapPin, Calendar, User, Send, MessageCircle, Edit, Trash2 } from 'lucide-react';
-import type { Database } from '../lib/database.types';
+import { toast } from 'sonner';
+import {
+  StoryRepository,
+  StoryQuestionRepository,
+  StoryLikeRepository,
+  useQuery,
+  useRepository,
+} from '../lib/data-access';
+import { logger } from '../lib/logger';
 
-type Story = Database['public']['Tables']['stories']['Row'];
-type StoryQuestion = Database['public']['Tables']['story_questions']['Row'] & {
-  user: { first_name: string; last_name: string } | null;
-  answers: (Database['public']['Tables']['story_answers']['Row'] & {
-    user: { first_name: string; last_name: string } | null;
-  })[];
-};
 
 export default function StoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [story, setStory] = useState<Story | null>(null);
-  const [author, setAuthor] = useState<{ first_name: string; last_name: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
-  const [questions, setQuestions] = useState<StoryQuestion[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [newAnswer, setNewAnswer] = useState<{ [key: string]: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // リポジトリインスタンスを作成
+  const storyRepo = useRepository(StoryRepository);
+  const questionRepo = new StoryQuestionRepository();
+  const likeRepo = new StoryLikeRepository();
+
+  // ストーリー詳細を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: storyData, loading } = useQuery<any>(
+    async () => storyRepo.findByIdWithAuthor(id!),
+    { enabled: !!id }
+  );
+
+  const story = storyData || null;
+  const author = storyData?.users as { first_name: string; last_name: string } | null;
+
+  // 質問一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: questions, refetch: refetchQuestions } = useQuery<any[]>(
+    async () => questionRepo.findByStoryWithAnswers(id!),
+    { enabled: !!id }
+  );
+
+  // いいね状況を確認
+  const { data: likedData } = useQuery<boolean>(
+    async () => likeRepo.checkLiked(id!, user!.id),
+    { enabled: !!(id && user) }
+  );
+
+  useEffect(() => {
+    if (likedData !== null && likedData !== undefined) {
+      setLiked(likedData);
+    }
+  }, [likedData]);
+
   useEffect(() => {
     if (id) {
-      loadStory();
-      loadQuestions();
-      checkIfLiked();
       incrementViews();
     }
   }, [id]);
-
-  const loadStory = async () => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('stories') as any)
-
-        .select(`
-          *,
-          users!stories_author_id_fkey (first_name, last_name)
-        `)
-        .eq('id', id!)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
-        navigate('/portal/stories');
-        return;
-      }
-
-      setStory(data);
-      setAuthor(data.users as any);
-    } catch (error) {
-      console.error('Error loading story:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadQuestions = async () => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('story_questions') as any)
-
-        .select(`
-          *,
-          users!story_questions_user_id_fkey (first_name, last_name),
-          story_answers (
-            *,
-            users!story_answers_user_id_fkey (first_name, last_name)
-          )
-        `)
-        .eq('story_id', id!)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setQuestions(data as any || []);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-    }
-  };
-
-  const checkIfLiked = async () => {
-    if (!user) return;
-
-    try {
-      const { data } = await (supabase
-
-        .from('story_likes') as any)
-
-        .select('id')
-        .eq('story_id', id!)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      setLiked(!!data);
-    } catch (error) {
-      console.error('Error checking like status:', error);
-    }
-  };
 
   const incrementViews = async () => {
     if (!id) return;
@@ -122,10 +79,10 @@ export default function StoryDetailPage() {
     }
 
     try {
-      await (supabase as any).rpc('increment_story_views', { story_id: id });
+      await supabase.rpc('increment_story_views' as never, { story_id: id } as Record<string, unknown>);
       localStorage.setItem(viewedKey, now.toString());
     } catch (error) {
-      console.error('Error incrementing views:', error);
+      logger.error('Error incrementing views:', error);
     }
   };
 
@@ -140,20 +97,18 @@ export default function StoryDetailPage() {
           .eq('story_id', story.id!)
           .eq('user_id', user.id);
 
-        setStory({ ...story, likes: story.likes - 1 });
         setLiked(false);
       } else {
         await (supabase
 
-          .from('story_likes') as any)
+          .from('story_likes'))
 
           .insert({ story_id: story.id, user_id: user.id });
 
-        setStory({ ...story, likes: story.likes + 1 });
         setLiked(true);
       }
     } catch (error) {
-      console.error('Error toggling like:', error);
+      logger.error('Error toggling like:', error);
     }
   };
 
@@ -165,7 +120,7 @@ export default function StoryDetailPage() {
     try {
       const { error } = await (supabase
 
-        .from('story_questions') as any)
+        .from('story_questions'))
 
         .insert({
           story_id: id!,
@@ -175,10 +130,10 @@ export default function StoryDetailPage() {
 
       if (error) throw error;
       setNewQuestion('');
-      await loadQuestions();
+      refetchQuestions();
     } catch (error) {
-      console.error('Error submitting question:', error);
-      alert('質問の投稿に失敗しました');
+      logger.error('Error submitting question:', error);
+      toast.error('質問の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -191,7 +146,7 @@ export default function StoryDetailPage() {
     try {
       const { error } = await (supabase
 
-        .from('story_answers') as any)
+        .from('story_answers'))
 
         .insert({
           question_id: questionId,
@@ -201,10 +156,10 @@ export default function StoryDetailPage() {
 
       if (error) throw error;
       setNewAnswer({ ...newAnswer, [questionId]: '' });
-      await loadQuestions();
+      refetchQuestions();
     } catch (error) {
-      console.error('Error submitting answer:', error);
-      alert('回答の投稿に失敗しました');
+      logger.error('Error submitting answer:', error);
+      toast.error('回答の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -224,8 +179,8 @@ export default function StoryDetailPage() {
       if (error) throw error;
       navigate('/portal/stories');
     } catch (error) {
-      console.error('Error deleting story:', error);
-      alert('投稿の削除に失敗しました');
+      logger.error('Error deleting story:', error);
+      toast.error('投稿の削除に失敗しました');
     }
   };
 
@@ -412,12 +367,13 @@ export default function StoryDetailPage() {
           )}
 
           <div className="space-y-6">
-            {questions.length === 0 ? (
+            {!questions || questions.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
                 まだ質問やコメントはありません
               </p>
             ) : (
-              questions.map((question) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              questions.map((question: any) => (
                 <div key={question.id} className="border rounded-lg p-6">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center text-sm text-gray-600">
@@ -435,7 +391,8 @@ export default function StoryDetailPage() {
 
                   {question.answers && question.answers.length > 0 && (
                     <div className="ml-8 space-y-4 border-l-2 border-gray-200 pl-6">
-                      {question.answers.map((answer) => (
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {question.answers.map((answer: any) => (
                         <div key={answer.id} className="bg-gray-50 rounded-lg p-4">
                           <div className="flex items-center text-sm text-gray-600 mb-2">
                             <User className="h-4 w-4 mr-2" />

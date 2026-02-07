@@ -14,6 +14,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
     /**
      * すべての質問を取得（著者情報と回答数付き）
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findAllWithAuthorAndAnswerCount(): Promise<Result<any[]>> {
         try {
             const { data, error } = await supabase
@@ -28,6 +29,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             if (error) throw error;
 
             // 回答数を集計
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const questionsWithCount = (data || []).map((q: any) => ({
                 ...q,
                 answer_count: q.answers?.length || 0
@@ -56,6 +58,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
     /**
      * 質問を著者情報付きで取得
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByIdWithAuthor(id: string): Promise<Result<any>> {
         try {
             const { data, error } = await supabase

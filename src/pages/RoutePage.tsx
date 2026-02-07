@@ -16,6 +16,7 @@ import {
   Lock,
 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { logger } from '../lib/logger';
 
 type Route = Database['public']['Tables']['routes']['Row'];
 type RouteStop = Database['public']['Tables']['route_stops']['Row'];
@@ -67,7 +68,7 @@ export default function RoutePage() {
       if (error) throw error;
       setMyRoutes(data || []);
     } catch (error) {
-      console.error('Error loading routes:', error);
+      logger.error('Error loading routes:', error);
     }
   };
 
@@ -85,7 +86,7 @@ export default function RoutePage() {
       if (error) throw error;
       setPublicRoutes(data || []);
     } catch (error) {
-      console.error('Error loading public routes:', error);
+      logger.error('Error loading public routes:', error);
     }
   };
 
@@ -108,7 +109,7 @@ export default function RoutePage() {
     setSaving(true);
     try {
       const { error: routeError } = await (supabase
-        .from('routes') as any)
+        .from('routes'))
         .insert({
           user_id: user.id,
           name: routeName,
@@ -119,7 +120,7 @@ export default function RoutePage() {
         });
 
       if (routeError) {
-        console.error('Route error:', routeError);
+        logger.error('Route error:', routeError);
         throw routeError;
       }
 
@@ -135,8 +136,9 @@ export default function RoutePage() {
       loadMyRoutes();
       loadPublicRoutes();
       setTimeout(() => setMessage(''), 5000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('Error saving route:', error);
+      logger.error('Error saving route:', error);
       setMessage(`ルートの保存に失敗しました: ${error.message || '不明なエラー'}`);
       setTimeout(() => setMessage(''), 5000);
     } finally {
@@ -169,7 +171,7 @@ export default function RoutePage() {
       const stops = (stopsData || []) as unknown as RouteStop[];
 
       if (stopsError) {
-        console.error('Error loading stops:', stopsError);
+        logger.error('Error loading stops:', stopsError);
       }
 
       setRouteName(route.name);
@@ -186,8 +188,9 @@ export default function RoutePage() {
 
       setMessage('ルートを読み込みました');
       setTimeout(() => setMessage(''), 3000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('Error loading route:', error);
+      logger.error('Error loading route:', error);
       setMessage(`ルートの読み込みに失敗しました: ${error.message || '不明なエラー'}`);
       setTimeout(() => setMessage(''), 3000);
     }
@@ -205,7 +208,7 @@ export default function RoutePage() {
       loadPublicRoutes();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error('Error deleting route:', error);
+      logger.error('Error deleting route:', error);
       setMessage('ルートの削除に失敗しました');
       setTimeout(() => setMessage(''), 3000);
     } finally {
@@ -217,7 +220,7 @@ export default function RoutePage() {
   const toggleRoutePublic = async (routeId: string, currentIsPublic: boolean) => {
     try {
       const { error } = await (supabase
-        .from('routes') as any)
+        .from('routes'))
         .update({ is_public: !currentIsPublic })
         .eq('id', routeId);
 
@@ -227,7 +230,7 @@ export default function RoutePage() {
       loadPublicRoutes();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error('Error toggling route visibility:', error);
+      logger.error('Error toggling route visibility:', error);
       setMessage('公開設定の変更に失敗しました');
       setTimeout(() => setMessage(''), 3000);
     }
@@ -484,6 +487,7 @@ export default function RoutePage() {
 
                 {showPublicRoutes && (
                   <div className="space-y-3">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     {publicRoutes.map((route: any) => (
                       <div
                         key={route.id}

@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 // Event型は必要に応じて使用
 
@@ -25,19 +28,13 @@ export default function EventFormPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('Upcoming');
 
-  useEffect(() => {
-    if (id && user) {
-      loadEvent();
-    }
-  }, [id, user]);
-
-  const loadEvent = async () => {
-    try {
-      setLoading(true);
+  // 編集時にイベントデータを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  const { loading: _loadingEvent } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('events') as any)
-
+        .from('events'))
         .select('*')
         .eq('id', id!)
         .eq('organizer_id', user!.id)
@@ -56,18 +53,17 @@ export default function EventFormPage() {
         setImageUrl(data.image_url || '');
         setStatus(data.status || 'Upcoming');
       }
-    } catch (error) {
-      console.error('Error loading event:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(id && user) }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim() || !description.trim() || !eventDate) {
-      alert('必須項目を入力してください');
+      toast.warning('必須項目を入力してください');
       return;
     }
 
@@ -95,29 +91,29 @@ export default function EventFormPage() {
 
       if (id) {
         const { error } = await (supabase
-        .from('events') as any)
+        .from('events'))
         .update(eventData)
         .eq('id', id!);
 
         if (error) throw error;
 
-        alert('イベントを更新しました');
+        toast.success('イベントを更新しました');
         navigate(`/portal/events/${id}`);
       } else {
         const { data, error } = await (supabase
-        .from('events') as any)
+        .from('events'))
         .insert(eventData)
         .select()
         .single();
 
         if (error) throw error;
 
-        alert('イベントを作成しました');
+        toast.success('イベントを作成しました');
         navigate(`/portal/events/${data.id}`);
       }
     } catch (error) {
-      console.error('Error saving event:', error);
-      alert('イベントの保存に失敗しました');
+      logger.error('Error saving event:', error);
+      toast.error('イベントの保存に失敗しました');
     } finally {
       setLoading(false);
     }

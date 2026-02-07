@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { Package, Save, ArrowLeft } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface EquipmentFormData {
   name: string;
@@ -37,7 +40,6 @@ export default function EquipmentFormPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
 
   const categories = [
     'テント',
@@ -52,21 +54,14 @@ export default function EquipmentFormPage() {
     'その他',
   ];
 
-  useEffect(() => {
-    if (isEditing && user && (isAdmin || isStaff)) {
-      loadEquipmentData();
-    }
-  }, [id, user, isAdmin, isStaff]);
+  // 編集時にデータを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading: loadingData } = useQuery<any>(
+    async () => {
+      if (!id) return { success: true, data: null };
 
-  const loadEquipmentData = async () => {
-    if (!id) return;
-
-    setLoadingData(true);
-    try {
       const { data, error } = await (supabase
-
-        .from('equipment') as any)
-
+        .from('equipment'))
         .select('*')
         .eq('id', id!)
         .single();
@@ -86,24 +81,22 @@ export default function EquipmentFormPage() {
           pricing_type: data.pricing_type || 'PerDay',
         });
       }
-    } catch (error) {
-      console.error('Error loading equipment:', error);
-      alert('ギヤデータの読み込みに失敗しました');
-    } finally {
-      setLoadingData(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(isEditing && user && (isAdmin || isStaff)) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.category) {
-      alert('必須項目を入力してください');
+      toast.warning('必須項目を入力してください');
       return;
     }
 
     if (formData.available_quantity > formData.stock_quantity) {
-      alert('在庫可能数は総在庫数を超えることはできません');
+      toast.error('在庫可能数は総在庫数を超えることはできません');
       return;
     }
 
@@ -113,7 +106,7 @@ export default function EquipmentFormPage() {
       if (isEditing) {
         const { error } = await (supabase
 
-          .from('equipment') as any)
+          .from('equipment'))
 
           .update({
             name: formData.name,
@@ -130,11 +123,11 @@ export default function EquipmentFormPage() {
 
         if (error) throw error;
 
-        alert('ギヤを更新しました');
+        toast.success('ギヤを更新しました');
       } else {
         const { error } = await (supabase
 
-          .from('equipment') as any)
+          .from('equipment'))
 
           .insert({
             name: formData.name,
@@ -150,13 +143,13 @@ export default function EquipmentFormPage() {
 
         if (error) throw error;
 
-        alert('ギヤを登録しました');
+        toast.success('ギヤを登録しました');
       }
 
       navigate('/admin/equipment');
     } catch (error) {
-      console.error('Error saving equipment:', error);
-      alert('ギヤの保存に失敗しました');
+      logger.error('Error saving equipment:', error);
+      toast.error('ギヤの保存に失敗しました');
     } finally {
       setSubmitting(false);
     }

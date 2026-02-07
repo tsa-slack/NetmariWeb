@@ -7,6 +7,8 @@ import type { Database } from '../lib/database.types';
 import ConfirmModal from '../components/ConfirmModal';
 import { PartnerRepository, ReviewRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -44,7 +46,7 @@ export default function PartnerDetailPage() {
       
       try {
         const { data, error } = await (supabase
-          .from('partner_favorites') as any)
+          .from('partner_favorites'))
           .select('id')
           .eq('partner_id', id!)
           .eq('user_id', user.id)
@@ -67,7 +69,7 @@ export default function PartnerDetailPage() {
 
   const toggleFavorite = async () => {
     if (!user) {
-      alert('お気に入りに追加するにはログインが必要です');
+      toast.warning('お気に入りに追加するにはログインが必要です');
       return;
     }
 
@@ -84,7 +86,7 @@ export default function PartnerDetailPage() {
         window.location.reload(); // 簡易的な再読み込み
       } else {
         const { error } = await (supabase
-          .from('partner_favorites') as any)
+          .from('partner_favorites'))
           .insert({
             partner_id: id,
             user_id: user.id,
@@ -94,8 +96,8 @@ export default function PartnerDetailPage() {
         window.location.reload(); // 簡易的な再読み込み
       }
     } catch (error) {
-      console.error('Error toggling favorite:', error);
-      alert('お気に入りの更新に失敗しました');
+      logger.error('Error toggling favorite:', error);
+      toast.error('お気に入りの更新に失敗しました');
     }
   };
 
@@ -108,11 +110,11 @@ export default function PartnerDetailPage() {
         .eq('id', id!);
 
       if (error) throw error;
-      alert('協力店を削除しました');
+      toast.success('協力店を削除しました');
       window.location.href = '/partners';
     } catch (error) {
-      console.error('Error deleting partner:', error);
-      alert('協力店の削除に失敗しました');
+      logger.error('Error deleting partner:', error);
+      toast.error('協力店の削除に失敗しました');
     }
   };
 
@@ -150,9 +152,13 @@ export default function PartnerDetailPage() {
   }
 
   const images = Array.isArray(partner.images) ? partner.images : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const contact = typeof partner.contact === 'object' && partner.contact ? partner.contact as Record<string, any> : {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const facilities = typeof partner.facilities === 'object' && partner.facilities ? partner.facilities as Record<string, any> : {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pricing = typeof partner.pricing === 'object' && partner.pricing ? partner.pricing as Record<string, any> : {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openingHours = typeof partner.opening_hours === 'object' && partner.opening_hours ? partner.opening_hours as Record<string, any> : {};
 
   const isAdmin = profile?.role === 'Admin';
@@ -342,6 +348,7 @@ export default function PartnerDetailPage() {
               <div className="mb-8">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">ギャラリー</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {images.slice(1).map((image: any, index: number) => (
                     <div
                       key={index}

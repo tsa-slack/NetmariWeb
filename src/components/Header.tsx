@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSystemSettings } from '../hooks/useSystemSettings';
 import { Car, Menu, User, LogOut, Settings } from 'lucide-react';
 import { useState } from 'react';
+import { logger } from '../lib/logger';
 
 export default function Header() {
   const { user, profile, signOut, isAdmin, isStaff, isPartner } = useAuth();
@@ -15,7 +16,7 @@ export default function Header() {
       await signOut();
       navigate('/');
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error:', error);
     }
   };
 

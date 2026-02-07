@@ -11,10 +11,11 @@ export class StoryQuestionRepository {
     /**
      * ストーリーの質問一覧を取得（ユーザー情報と回答付き）
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByStoryWithAnswers(storyId: string): Promise<Result<any[]>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select(`
           *,
           users!story_questions_user_id_fkey (first_name, last_name),
@@ -50,7 +51,7 @@ export class StoryLikeRepository {
     async checkLiked(storyId: string, userId: string): Promise<Result<boolean>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select('id')
                 .eq('story_id', storyId)
                 .eq('user_id', userId)

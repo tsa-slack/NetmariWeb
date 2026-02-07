@@ -88,7 +88,9 @@ export default function VehicleDetailPage() {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const specs = vehicle.specs as Record<string, any> || {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const features = vehicle.features as Record<string, any> || {};
   const images = vehicle.images as string[] || [];
 

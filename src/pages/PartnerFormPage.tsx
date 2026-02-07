@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 
 
@@ -19,7 +22,6 @@ export default function PartnerFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [name, setName] = useState('');
@@ -37,19 +39,12 @@ export default function PartnerFormPage() {
   const isEdit = !!id;
   const isAdmin = profile?.role === 'Admin';
 
-  useEffect(() => {
-    if (id && isAdmin) {
-      loadPartner();
-    }
-  }, [id, isAdmin]);
-
-  const loadPartner = async () => {
-    try {
-      setLoading(true);
+  // 編集時にパートナーデータを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('images') as any)
-
+        .from('images'))
         .select('*')
         .eq('id', id!)
         .maybeSingle();
@@ -63,6 +58,7 @@ export default function PartnerFormPage() {
         setLatitude(data.latitude?.toString() || '');
         setLongitude(data.longitude?.toString() || '');
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const contact = typeof data.contact === 'object' && data.contact ? data.contact as Record<string, any> : {};
         setPhone(contact.phone || '');
         setEmail(contact.email || '');
@@ -72,19 +68,17 @@ export default function PartnerFormPage() {
         setImageUrls(images.join('\n'));
         setUploadedImages(images as string[]);
       }
-    } catch (error) {
-      console.error('Error loading partner:', error);
-      alert('協力店の読み込みに失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(id && isAdmin) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
-      alert('協力店名を入力してください');
+      toast.warning('協力店名を入力してください');
       return;
     }
 
@@ -98,6 +92,7 @@ export default function PartnerFormPage() {
 
       const allImages = [...uploadedImages, ...urlImages];
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const contact: Record<string, any> = {};
       if (phone) contact.phone = phone;
       if (email) contact.email = email;
@@ -117,32 +112,32 @@ export default function PartnerFormPage() {
       if (isEdit) {
         const { error } = await (supabase
 
-          .from('images') as any)
+          .from('images'))
 
           .update(partnerData)
           .eq('id', id!);
 
         if (error) throw error;
-        alert('協力店を更新しました');
+        toast.success('協力店を更新しました');
       } else {
         const { data, error } = await (supabase
 
-          .from('images') as any)
+          .from('images'))
 
           .insert(partnerData)
           .select()
           .single();
 
         if (error) throw error;
-        alert('協力店を作成しました');
+        toast.success('協力店を作成しました');
         navigate(`/partners/${data.id}`);
         return;
       }
 
       navigate(`/partners/${id}`);
     } catch (error) {
-      console.error('Error saving partner:', error);
-      alert(`協力店の${isEdit ? '更新' : '作成'}に失敗しました`);
+      logger.error('Error saving partner:', error);
+      toast.error(`協力店の${isEdit ? '更新' : '作成'}に失敗しました`);
     } finally {
       setSubmitting(false);
     }

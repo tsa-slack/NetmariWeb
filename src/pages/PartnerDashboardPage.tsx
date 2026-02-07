@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
 import {
   Store,
   Star,
@@ -48,150 +49,85 @@ export default function PartnerDashboardPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'activities' | 'equipment' | 'reservations'>('overview');
 
-  useEffect(() => {
-    if (user && isPartner) {
-      loadPartnerData();
-    }
-  }, [user, isPartner]);
+  // パートナーデータを一括取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  const { data: _dashboardData } = useQuery<any>(
+    async () => {
+      if (!user) return { success: true, data: null };
 
-  const loadPartnerData = async () => {
-    if (!user) return;
-
-    try {
       const { data: partnerData, error: partnerError } = await (supabase
-
-        .from('partners') as any)
-
+        .from('partners'))
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (partnerError) throw partnerError;
+      if (!partnerData) return { success: true, data: null };
 
-      if (partnerData) {
-        setPartner(partnerData);
-        await Promise.all([
-          loadStats(partnerData.id),
-          loadRecentReviews(partnerData.id),
-          loadActivities(),
-          loadEquipment(),
-          loadReservations(),
-        ]);
-      }
-    } catch (error) {
-      console.error('Error loading partner data:', error);
-    }
-  };
-
-  const loadStats = async (partnerId: string) => {
-    try {
-      const [reviewsRes, favoritesRes] = await Promise.all([
+      // 並列でデータ取得
+      const [reviewsRes, favoritesRes, recentReviewsRes, activitiesRes, equipmentRes, reservationsRes] = await Promise.all([
         supabase
           .from('reviews')
           .select('rating')
           .eq('target_type', 'Partner')
-          .eq('target_id', partnerId!),
+          .eq('target_id', partnerData.id),
         supabase
           .from('partner_favorites')
           .select('id', { count: 'exact', head: true })
-          .eq('partner_id', partnerId!),
+          .eq('partner_id', partnerData.id),
+        (supabase.from('reviews'))
+          .select('*')
+          .eq('target_type', 'Partner')
+          .eq('target_id', partnerData.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        (supabase.from('activities'))
+          .select('*')
+          .order('created_at', { ascending: false }),
+        (supabase.from('equipment'))
+          .select('*')
+          .order('name', { ascending: true }),
+        (supabase.from('reservations'))
+          .select(`
+            *,
+            users:user_id (
+              email,
+              first_name,
+              last_name
+            ),
+            rental_vehicles:rental_vehicle_id (
+              vehicle_id
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10),
       ]);
 
       const reviews = reviewsRes.data || [];
       const totalReviews = reviews.length;
       const averageRating =
         totalReviews > 0
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews
           : 0;
 
+      setPartner(partnerData);
       setStats({
         totalReviews,
         averageRating: Math.round(averageRating * 10) / 10,
         totalFavorites: favoritesRes.count || 0,
         monthlyViews: 0,
       });
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  };
+      setRecentReviews(recentReviewsRes.data || []);
+      setActivities(activitiesRes.data || []);
+      setEquipment(equipmentRes.data || []);
+      setReservations(reservationsRes.data || []);
 
-  const loadRecentReviews = async (partnerId: string) => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('reviews') as any)
-
-        .select('*')
-        .eq('target_type', 'Partner')
-        .eq('target_id', partnerId!)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      setRecentReviews(data || []);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    }
-  };
-
-  const loadActivities = async () => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('activities') as any)
-
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setActivities(data || []);
-    } catch (error) {
-      console.error('Error loading activities:', error);
-    }
-  };
-
-  const loadEquipment = async () => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('equipment') as any)
-
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setEquipment(data || []);
-    } catch (error) {
-      console.error('Error loading equipment:', error);
-    }
-  };
-
-  const loadReservations = async () => {
-    try {
-      const { data, error } = await (supabase
-
-        .from('reservations') as any)
-
-        .select(`
-          *,
-          users:user_id (
-            email,
-            first_name,
-            last_name
-          ),
-          rental_vehicles:rental_vehicle_id (
-            vehicle_id
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setReservations(data || []);
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-    }
-  };
+      return { success: true, data: partnerData };
+    },
+    { enabled: !!(user && isPartner) }
+  );
 
   if (loading) {
     return (

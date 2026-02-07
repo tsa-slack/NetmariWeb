@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
 import {
   Mail,
   Phone,
@@ -16,6 +18,7 @@ import {
   User,
   Calendar,
 } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 type Contact = Database['public']['Tables']['contacts']['Row'];
 
@@ -26,22 +29,12 @@ export default function ContactManagementPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [loadingContacts, setLoadingContacts] = useState(true);
   const [adminNotes, setAdminNotes] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadContacts();
-    }
-  }, [user, isAdmin, isStaff]);
-
-  useEffect(() => {
-    filterContacts();
-  }, [contacts, statusFilter, categoryFilter]);
-
-  const loadContacts = async () => {
-    try {
+  // お問い合わせ一覧を取得
+  const { loading: loadingContacts } = useQuery<Contact[]>(
+    async () => {
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -49,12 +42,14 @@ export default function ContactManagementPage() {
 
       if (error) throw error;
       setContacts(data || []);
-    } catch (error) {
-      console.error('Error loading contacts:', error);
-    } finally {
-      setLoadingContacts(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
+
+  useEffect(() => {
+    filterContacts();
+  }, [contacts, statusFilter, categoryFilter]);
 
   const filterContacts = () => {
     let filtered = [...contacts];
@@ -73,7 +68,7 @@ export default function ContactManagementPage() {
   const updateContactStatus = async (contactId: string, newStatus: string) => {
     setUpdatingStatus(true);
     try {
-      const updates: any = { status: newStatus };
+      const updates: any = { status: newStatus }; // eslint-disable-line @typescript-eslint/no-explicit-any
       if (newStatus === 'resolved') {
         updates.resolved_at = new Date().toISOString();
       }
@@ -81,7 +76,7 @@ export default function ContactManagementPage() {
       const { error } = await (supabase
 
 
-        .from('contacts') as any)
+        .from('contacts'))
 
 
         .update(updates)
@@ -99,8 +94,8 @@ export default function ContactManagementPage() {
         setSelectedContact({ ...selectedContact, ...updates });
       }
     } catch (error) {
-      console.error('Error updating contact status:', error);
-      alert('ステータスの更新に失敗しました');
+      logger.error('Error updating contact status:', error);
+      toast.error('ステータスの更新に失敗しました');
     } finally {
       setUpdatingStatus(false);
     }
@@ -112,7 +107,7 @@ export default function ContactManagementPage() {
     try {
       const { error } = await (supabase
 
-        .from('contacts') as any)
+        .from('contacts'))
 
         .update({ admin_notes: adminNotes })
         .eq('id', selectedContact.id);
@@ -126,10 +121,10 @@ export default function ContactManagementPage() {
       );
 
       setSelectedContact({ ...selectedContact, admin_notes: adminNotes });
-      alert('メモを保存しました');
+      toast.success('メモを保存しました');
     } catch (error) {
-      console.error('Error updating admin notes:', error);
-      alert('メモの保存に失敗しました');
+      logger.error('Error updating admin notes:', error);
+      toast.error('メモの保存に失敗しました');
     }
   };
 

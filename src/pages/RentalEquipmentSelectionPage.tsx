@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { Package, Plus, Minus, ArrowRight, ArrowLeft, Calendar } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
 
 type Equipment = Database['public']['Tables']['equipment']['Row'] & {
   pricing_type?: string | null;
@@ -33,7 +34,6 @@ export default function RentalEquipmentSelectionPage() {
   const [selectedEquipment, setSelectedEquipment] = useState<Map<string, SelectedEquipment>>(
     new Map()
   );
-  const [loading, setLoading] = useState(true);
 
   const startDate = searchParams.get('start') || '';
   const endDate = searchParams.get('end') || '';
@@ -48,19 +48,14 @@ export default function RentalEquipmentSelectionPage() {
     }
     if (!startDate || !endDate || !days || !vehicleId) {
       navigate('/rental');
-      return;
-    }
-    if (user) {
-      loadEquipment();
     }
   }, [user, authLoading, startDate, endDate, days, vehicleId]);
 
-  const loadEquipment = async () => {
-    try {
+  // 装備データを取得
+  const { loading } = useQuery<Equipment[]>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('equipment') as any)
-
+        .from('equipment'))
         .select('*')
         .eq('status', 'Available')
         .order('category', { ascending: true })
@@ -68,12 +63,10 @@ export default function RentalEquipmentSelectionPage() {
 
       if (error) throw error;
       setEquipment(data || []);
-    } catch (error) {
-      console.error('Error loading equipment:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && startDate && endDate && days && vehicleId) }
+  );
 
   const handleQuantityChange = (eq: Equipment, delta: number) => {
     const current = selectedEquipment.get(eq.id);

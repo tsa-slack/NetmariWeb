@@ -6,6 +6,9 @@ import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, X, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 
 
@@ -14,7 +17,6 @@ export default function StoryFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(!!id);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -32,20 +34,15 @@ export default function StoryFormPage() {
   useEffect(() => {
     if (!user) {
       navigate('/login');
-      return;
     }
+  }, [user]);
 
-    if (id) {
-      loadStory();
-    }
-  }, [id, user]);
-
-  const loadStory = async () => {
-    try {
+  // 編集時にストーリーデータを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading: loadingStory } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('stories') as any)
-
+        .from('stories'))
         .select('*')
         .eq('id', id!)
         .maybeSingle();
@@ -54,13 +51,13 @@ export default function StoryFormPage() {
 
       if (!data) {
         navigate('/portal/stories');
-        return;
+        return { success: true, data: null };
       }
 
       if (data.author_id !== user?.id) {
-        alert('この投稿を編集する権限がありません');
+        toast.error('この投稿を編集する権限がありません');
         navigate('/portal/stories');
-        return;
+        return { success: true, data: null };
       }
 
       setFormData({
@@ -73,18 +70,14 @@ export default function StoryFormPage() {
         status: data.status as 'Draft' | 'Published',
       });
 
-      // Load existing images
       if (data.images && Array.isArray(data.images)) {
         setUploadedImages(data.images as string[]);
       }
-    } catch (error) {
-      console.error('Error loading story:', error);
-      alert('投稿の読み込みに失敗しました');
-      navigate('/portal/stories');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(id && user) }
+  );
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !user) return;
@@ -112,8 +105,8 @@ export default function StoryFormPage() {
       const imageUrls = await Promise.all(uploadPromises);
       setUploadedImages([...uploadedImages, ...imageUrls]);
     } catch (error) {
-      console.error('Error uploading images:', error);
-      alert('画像のアップロードに失敗しました');
+      logger.error('Error uploading images:', error);
+      toast.error('画像のアップロードに失敗しました');
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -129,8 +122,8 @@ export default function StoryFormPage() {
       }
       setUploadedImages(uploadedImages.filter((url) => url !== imageUrl));
     } catch (error) {
-      console.error('Error deleting image:', error);
-      alert('画像の削除に失敗しました');
+      logger.error('Error deleting image:', error);
+      toast.error('画像の削除に失敗しました');
     }
   };
 
@@ -139,7 +132,7 @@ export default function StoryFormPage() {
     if (!user || submitting) return;
 
     if (!formData.title.trim() || !formData.content.trim()) {
-      alert('タイトルと本文は必須です');
+      toast.warning('タイトルと本文は必須です');
       return;
     }
 
@@ -170,7 +163,7 @@ export default function StoryFormPage() {
 
       if (id) {
         const { error } = await (supabase
-        .from('stories') as any)
+        .from('stories'))
         .update(storyData)
         .eq('id', id!);
 
@@ -178,7 +171,7 @@ export default function StoryFormPage() {
         navigate(`/portal/stories/${id}`);
       } else {
         const { data, error } = await (supabase
-        .from('stories') as any)
+        .from('stories'))
         .insert({
           ...storyData,
           author_id: user.id,
@@ -190,14 +183,14 @@ export default function StoryFormPage() {
         navigate(`/portal/stories/${data.id}`);
       }
     } catch (error) {
-      console.error('Error saving story:', error);
-      alert('投稿の保存に失敗しました');
+      logger.error('Error saving story:', error);
+      toast.error('投稿の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (loadingStory) {
     return (
       <Layout>
         <div className="text-center py-12">

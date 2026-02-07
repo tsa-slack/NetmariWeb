@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import { Star, Eye, EyeOff, Trash2, Filter, Search, Calendar } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface Review {
   id: string;
@@ -23,21 +26,15 @@ interface Review {
 
 export default function ReviewManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadReviews();
-    }
-  }, [user, isAdmin, isStaff, filter]);
-
-  const loadReviews = async () => {
-    try {
+  // レビュー一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: reviews, loading: loadingReviews, refetch } = useQuery<any[]>(
+    async () => {
       let query = supabase
         .from('reviews')
         .select(`
@@ -60,30 +57,26 @@ export default function ReviewManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setReviews(data || []);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    } finally {
-      setLoadingReviews(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const togglePublish = async (review: Review) => {
     try {
       const { error } = await (supabase
 
-        .from('reviews') as any)
+        .from('reviews'))
 
         .update({ is_published: !review.is_published })
         .eq('id', review.id);
 
       if (error) throw error;
-      loadReviews();
+      refetch();
     } catch (error) {
-      console.error('Error toggling review:', error);
-      alert('公開状態の変更に失敗しました');
+      logger.error('Error toggling review:', error);
+      toast.error('公開状態の変更に失敗しました');
     }
   };
 
@@ -99,14 +92,15 @@ export default function ReviewManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedReview(null);
-      loadReviews();
+      refetch();
     } catch (error) {
-      console.error('Error deleting review:', error);
-      alert('レビューの削除に失敗しました');
+      logger.error('Error deleting review:', error);
+      toast.error('レビューの削除に失敗しました');
     }
   };
 
-  const filteredReviews = reviews.filter((review) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredReviews = (reviews || []).filter((review: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -151,7 +145,7 @@ export default function ReviewManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>

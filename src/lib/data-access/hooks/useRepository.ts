@@ -8,6 +8,7 @@ import type { BaseRepository } from '../base/BaseRepository';
  * const eventRepo = useRepository(EventRepository);
  * const { data } = useQuery(() => eventRepo.findUpcoming());
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useRepository<T extends BaseRepository<any>>(
     RepositoryClass: new () => T
 ): T {
@@ -24,6 +25,7 @@ export function useRepository<T extends BaseRepository<any>>(
  * });
  */
 export function useRepositories<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     T extends Record<string, new () => BaseRepository<any>>
 >(
     repositories: T

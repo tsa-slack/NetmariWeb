@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -15,6 +15,9 @@ import {
   Eye,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface RentalVehicle {
   id: string;
@@ -28,14 +31,13 @@ interface RentalVehicle {
     type: string;
     manufacturer: string;
     year: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     images: any;
   };
 }
 
 export default function VehicleManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [vehicles, setVehicles] = useState<RentalVehicle[]>([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [filter, setFilter] = useState<
     'all' | 'Available' | 'OnRent' | 'Maintenance'
   >('all');
@@ -43,14 +45,10 @@ export default function VehicleManagementPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<RentalVehicle | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadVehicles();
-    }
-  }, [user, isAdmin, isStaff, filter]);
-
-  const loadVehicles = async () => {
-    try {
+  // レンタル車両一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: vehicles, loading: loadingVehicles, refetch } = useQuery<any[]>(
+    async () => {
       let query = supabase
         .from('rental_vehicles')
         .select(`
@@ -75,30 +73,26 @@ export default function VehicleManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setVehicles(data || []);
-    } catch (error) {
-      console.error('Error loading vehicles:', error);
-    } finally {
-      setLoadingVehicles(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const updateStatus = async (vehicleId: string, newStatus: string) => {
     try {
       const { error } = await (supabase
 
-        .from('rental_vehicles') as any)
+        .from('rental_vehicles'))
 
         .update({ status: newStatus })
         .eq('id', vehicleId);
 
       if (error) throw error;
-      loadVehicles();
+      refetch();
     } catch (error) {
-      console.error('Error updating vehicle:', error);
-      alert('ステータスの変更に失敗しました');
+      logger.error('Error updating vehicle:', error);
+      toast.error('ステータスの変更に失敗しました');
     }
   };
 
@@ -114,14 +108,15 @@ export default function VehicleManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedVehicle(null);
-      loadVehicles();
+      refetch();
     } catch (error) {
-      console.error('Error deleting vehicle:', error);
-      alert('車両の削除に失敗しました');
+      logger.error('Error deleting vehicle:', error);
+      toast.error('車両の削除に失敗しました');
     }
   };
 
-  const filteredVehicles = vehicles.filter((vehicle) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredVehicles = (vehicles || []).filter((vehicle: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -207,7 +202,7 @@ export default function VehicleManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>

@@ -14,7 +14,7 @@ export class SystemSettingsRepository {
     async findByKey(key: string): Promise<Result<string | null>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select('value')
                 .eq('key', key)
                 .maybeSingle();
@@ -35,12 +35,13 @@ export class SystemSettingsRepository {
     async findAll(): Promise<Result<Record<string, string>>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select('key, value');
 
             if (error) throw error;
 
             const settings: Record<string, string> = {};
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (data || []).forEach((item: any) => {
                 settings[item.key] = item.value;
             });

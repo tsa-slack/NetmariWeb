@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { useQuery } from '../lib/data-access';
 import { loadStripe, Stripe, StripeCardNumberElement, StripeCardExpiryElement, StripeCardCvcElement } from '@stripe/stripe-js';
 import {
   Calendar,
@@ -18,6 +19,7 @@ import {
   X,
   Award} from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { logger } from '../lib/logger';
 
 type RentalVehicle = Database['public']['Tables']['rental_vehicles']['Row'] & {
   vehicle?: Database['public']['Tables']['vehicles']['Row'];
@@ -38,7 +40,6 @@ export default function RentalConfirmationPage() {
   const [activities, setActivities] = useState<
     Array<Activity & { date: string; participants: number; price: number }>
   >([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -73,10 +74,6 @@ export default function RentalConfirmationPage() {
     }
     if (!startDate || !endDate || !days || !vehicleId) {
       navigate('/rental');
-      return;
-    }
-    if (user) {
-      loadData();
     }
   }, [user, authLoading, startDate, endDate, days, vehicleId]);
 
@@ -145,7 +142,7 @@ export default function RentalConfirmationPage() {
 
         setStripeLoading(false);
       } catch (err) {
-        console.error('Stripe initialization error:', err);
+        logger.error('Stripe initialization error:', err);
         setStripeError('決済システムの初期化に失敗しました');
         setStripeLoading(false);
       }
@@ -171,12 +168,12 @@ export default function RentalConfirmationPage() {
     };
   }, [showPaymentForm, paymentMethod]);
 
-  const loadData = async () => {
-    try {
+  // 予約データを一括取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading } = useQuery<any>(
+    async () => {
       const { data: vehicleData, error: vehicleError } = await (supabase
-
-        .from('rental_vehicles') as any)
-
+        .from('rental_vehicles'))
         .select('*, vehicle:vehicles(*)')
         .eq('id', vehicleId!)
         .maybeSingle();
@@ -185,17 +182,18 @@ export default function RentalConfirmationPage() {
       setRentalVehicle(vehicleData);
 
       if (equipmentData.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const equipmentIds = equipmentData.map((eq: any) => eq.id);
         const { data: equipmentList, error: equipmentError } = await (supabase
-
-          .from('equipment') as any)
-
+          .from('equipment'))
           .select('*')
           .in('id', equipmentIds);
 
         if (equipmentError) throw equipmentError;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enrichedEquipment = equipmentList.map((eq: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const eqData = equipmentData.find((e: any) => e.id === eq.id);
           return {
             ...eq,
@@ -209,18 +207,19 @@ export default function RentalConfirmationPage() {
       }
 
       if (activitiesData.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const activityIds = activitiesData.map((act: any) => act.id);
         const { data: activityList, error: activityError } = await (supabase
-
-          .from('activities') as any)
-
+          .from('activities'))
           .select('*')
           .in('id', activityIds);
 
         if (activityError) throw activityError;
 
         const enrichedActivities = activityList
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((act: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const actData = activitiesData.find((a: any) => a.id === act.id);
             return {
               ...act,
@@ -229,6 +228,7 @@ export default function RentalConfirmationPage() {
               price: actData.price,
             };
           })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
         setActivities(enrichedActivities);
@@ -237,9 +237,7 @@ export default function RentalConfirmationPage() {
       // ユーザーのランクと割引率を取得
       if (user) {
         const { data: userData, error: userError } = await (supabase
-
-          .from('users') as any)
-
+          .from('users'))
           .select('rank')
           .eq('id', user.id)
           .maybeSingle();
@@ -249,9 +247,7 @@ export default function RentalConfirmationPage() {
 
           // ランク設定から割引率を取得
           const { data: settings } = await (supabase
-
-            .from('system_settings') as any)
-
+            .from('system_settings'))
             .select('rank_settings')
             .limit(1)
             .maybeSingle();
@@ -264,13 +260,11 @@ export default function RentalConfirmationPage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setError('データの読み込みに失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data: vehicleData };
+    },
+    { enabled: !!(user && startDate && endDate && days && vehicleId) }
+  );
 
   const calculateTotals = () => {
     const vehicleTotal = vehiclePrice * days;
@@ -415,7 +409,7 @@ export default function RentalConfirmationPage() {
       const { data: reservation, error: reservationError } = await (supabase
 
 
-        .from('reservations') as any)
+        .from('reservations'))
 
 
         .insert({
@@ -444,6 +438,7 @@ export default function RentalConfirmationPage() {
       if (reservationError) throw reservationError;
 
       if (equipment.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const equipmentInserts = equipment.map((eq: any) => {
           const pricingType = eq.pricing_type || 'PerDay';
           const subtotal = pricingType === 'PerUnit'
@@ -462,7 +457,7 @@ export default function RentalConfirmationPage() {
         const { error: equipmentError } = await (supabase
 
 
-          .from('reservation_equipment') as any)
+          .from('reservation_equipment'))
 
 
           .insert(equipmentInserts);
@@ -471,6 +466,7 @@ export default function RentalConfirmationPage() {
       }
 
       if (activities.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const activityInserts = activities.map((act: any) => ({
           reservation_id: reservation.id,
           activity_id: act.id,
@@ -482,7 +478,7 @@ export default function RentalConfirmationPage() {
         const { error: activityError } = await (supabase
 
 
-          .from('reservation_activities') as any)
+          .from('reservation_activities'))
 
 
           .insert(activityInserts);
@@ -492,8 +488,9 @@ export default function RentalConfirmationPage() {
 
       setReservationId(reservation.id);
       setShowSuccessModal(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('Error creating reservation:', error);
+      logger.error('Error creating reservation:', error);
       setError(error.message || '予約の作成に失敗しました');
     } finally {
       setSubmitting(false);
@@ -618,6 +615,7 @@ export default function RentalConfirmationPage() {
                 <h2 className="text-xl font-semibold text-gray-800">ギア・装備</h2>
               </div>
               <div className="space-y-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {equipment.map((eq: any) => {
                   const pricingType = eq.pricing_type || 'PerDay';
                   const itemTotal = pricingType === 'PerUnit'

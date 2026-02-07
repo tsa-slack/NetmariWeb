@@ -6,6 +6,7 @@ import { Bell, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { AnnouncementRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
 import type { Row } from '../lib/data-access/base/types';
+import { logger } from '../lib/logger';
 
 type Announcement = Row<'announcements'> & {
   author?: {
@@ -60,7 +61,7 @@ export default function AnnouncementsPage() {
     },
     {
       onError: (err: Error) => {
-        console.error('Error loading announcements:', err);
+        logger.error('Error loading announcements:', err);
       },
     }
   );

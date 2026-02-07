@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -15,6 +15,9 @@ import {
   EyeOff,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface Equipment {
   id: string;
@@ -32,22 +35,16 @@ interface Equipment {
 export default function EquipmentManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [loadingEquipment, setLoadingEquipment] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadEquipment();
-    }
-  }, [user, isAdmin, isStaff, filter, categoryFilter]);
-
-  const loadEquipment = async () => {
-    try {
+  // ギヤ一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: equipment, loading: loadingEquipment, refetch } = useQuery<any[]>(
+    async () => {
       let query = supabase
         .from('equipment')
         .select('*')
@@ -64,30 +61,26 @@ export default function EquipmentManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setEquipment(data || []);
-    } catch (error) {
-      console.error('Error loading equipment:', error);
-    } finally {
-      setLoadingEquipment(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const togglePublish = async (equipmentId: string, currentStatus: boolean) => {
     try {
       const { error } = await (supabase
 
-        .from('equipment') as any)
+        .from('equipment'))
 
         .update({ is_published: !currentStatus })
         .eq('id', equipmentId);
 
       if (error) throw error;
-      loadEquipment();
+      refetch();
     } catch (error) {
-      console.error('Error updating equipment:', error);
-      alert('公開状態の変更に失敗しました');
+      logger.error('Error updating equipment:', error);
+      toast.error('公開状態の変更に失敗しました');
     }
   };
 
@@ -103,14 +96,15 @@ export default function EquipmentManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedEquipment(null);
-      loadEquipment();
+      refetch();
     } catch (error) {
-      console.error('Error deleting equipment:', error);
-      alert('ギヤの削除に失敗しました');
+      logger.error('Error deleting equipment:', error);
+      toast.error('ギヤの削除に失敗しました');
     }
   };
 
-  const filteredEquipment = equipment.filter((item) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredEquipment = (equipment || []).filter((item: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -120,7 +114,8 @@ export default function EquipmentManagementPage() {
     );
   });
 
-  const categories = Array.from(new Set(equipment.map((item) => item.category)));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const categories = Array.from(new Set((equipment || []).map((item: any) => item.category)));
 
   if (loading) {
     return (
@@ -173,7 +168,7 @@ export default function EquipmentManagementPage() {
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
               >
                 <option value="all">すべて</option>

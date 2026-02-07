@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { MessageCircle, Eye, Edit, Trash2, CheckCircle, ThumbsUp } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { QuestionRepository, AnswerRepository, useQuery, useRepository } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Question = Database['public']['Tables']['questions']['Row'] & {
   author?: {
@@ -51,9 +53,9 @@ export default function QuestionDetailPage() {
     const incrementViews = async () => {
       if (!id) return;
       try {
-        await (supabase as any).rpc('increment_question_views', { question_id: id });
+        await supabase.rpc('increment_question_views' as never, { question_id: id } as Record<string, unknown>);
       } catch (error) {
-        console.error('Error incrementing views:', error);
+        logger.error('Error incrementing views:', error);
       }
     };
 
@@ -67,7 +69,7 @@ export default function QuestionDetailPage() {
     e.preventDefault();
 
     if (!answerContent.trim()) {
-      alert('回答を入力してください');
+      toast.warning('回答を入力してください');
       return;
     }
 
@@ -75,7 +77,7 @@ export default function QuestionDetailPage() {
       setSubmitting(true);
 
       const { error } = await (supabase
-        .from('answers') as any)
+        .from('answers'))
         .insert({
           question_id: id,
           content: answerContent.trim(),
@@ -86,10 +88,10 @@ export default function QuestionDetailPage() {
 
       setAnswerContent('');
       refetchAnswers(); // useQueryのrefetchを使用
-      alert('回答を投稿しました');
+      toast.success('回答を投稿しました');
     } catch (error) {
-      console.error('Error submitting answer:', error);
-      alert('回答の投稿に失敗しました');
+      logger.error('Error submitting answer:', error);
+      toast.error('回答の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -98,29 +100,29 @@ export default function QuestionDetailPage() {
   const handleMarkAsResolved = async () => {
     try {
       const { error } = await (supabase
-        .from('questions') as any)
+        .from('questions'))
         .update({ status: 'Resolved' })
         .eq('id', id!);
 
       if (error) throw error;
 
       refetchQuestion(); // useQueryのrefetchを使用
-      alert('質問を解決済みにしました');
+      toast.success('質問を解決済みにしました');
     } catch (error) {
-      console.error('Error marking as resolved:', error);
-      alert('更新に失敗しました');
+      logger.error('Error marking as resolved:', error);
+      toast.error('更新に失敗しました');
     }
   };
 
   const handleAcceptAnswer = async (answerId: string) => {
     try {
       await (supabase
-        .from('answers') as any)
+        .from('answers'))
         .update({ is_accepted: false })
         .eq('question_id', id!);
 
       const { error } = await (supabase
-        .from('answers') as any)
+        .from('answers'))
         .update({ is_accepted: true })
         .eq('id', answerId!);
 
@@ -129,8 +131,8 @@ export default function QuestionDetailPage() {
       refetchAnswers(); // useQueryのrefetchを使用
       handleMarkAsResolved();
     } catch (error) {
-      console.error('Error accepting answer:', error);
-      alert('ベストアンサーの設定に失敗しました');
+      logger.error('Error accepting answer:', error);
+      toast.error('ベストアンサーの設定に失敗しました');
     }
   };
 
@@ -143,11 +145,11 @@ export default function QuestionDetailPage() {
 
       if (error) throw error;
 
-      alert('質問を削除しました');
+      toast.success('質問を削除しました');
       navigate('/portal/questions');
     } catch (error) {
-      console.error('Error deleting question:', error);
-      alert('質問の削除に失敗しました');
+      logger.error('Error deleting question:', error);
+      toast.error('質問の削除に失敗しました');
     }
   };
 
@@ -184,7 +186,7 @@ export default function QuestionDetailPage() {
     return <Navigate to="/portal/questions" replace />;
   }
 
-  const isAuthor = user && question.author && (question.author as any).user_id === user.id;
+  const isAuthor = user && question.author && (question.author as { user_id?: string }).user_id === user.id;
 
   return (
     <Layout>

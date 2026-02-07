@@ -73,6 +73,6 @@ export class UserRepository extends BaseRepository<'users'> {
             bio?: string;
         }
     ): Promise<Result<Row<'users'>>> {
-        return this.update(userId, profileData as any);
+        return this.update(userId, profileData);
     }
 }

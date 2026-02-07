@@ -124,12 +124,31 @@ CREATE POLICY "Admins can update all users" ON users FOR UPDATE TO authenticated
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, first_name, last_name)
+  INSERT INTO public.users (
+    id,
+    email,
+    first_name,
+    last_name,
+    phone_number,
+    postal_code,
+    prefecture,
+    city,
+    address_line,
+    building,
+    role
+  )
   VALUES (
     NEW.id,
     NEW.email,
     NEW.raw_user_meta_data->>'first_name',
-    NEW.raw_user_meta_data->>'last_name'
+    NEW.raw_user_meta_data->>'last_name',
+    NEW.raw_user_meta_data->>'phone_number',
+    NEW.raw_user_meta_data->>'postal_code',
+    NEW.raw_user_meta_data->>'prefecture',
+    NEW.raw_user_meta_data->>'city',
+    NEW.raw_user_meta_data->>'address_line',
+    NEW.raw_user_meta_data->>'building',
+    'Members'
   );
   RETURN NEW;
 END;
@@ -394,6 +413,8 @@ CREATE TABLE IF NOT EXISTS story_questions (
 ALTER TABLE story_questions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view questions" ON story_questions FOR SELECT USING (true);
 CREATE POLICY "Users can create questions" ON story_questions FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own story questions" ON story_questions FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own story questions" ON story_questions FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS story_answers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -407,6 +428,8 @@ CREATE TABLE IF NOT EXISTS story_answers (
 ALTER TABLE story_answers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view answers" ON story_answers FOR SELECT USING (true);
 CREATE POLICY "Users can create answers" ON story_answers FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own story answers" ON story_answers FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own story answers" ON story_answers FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS story_likes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -451,6 +474,8 @@ CREATE TABLE IF NOT EXISTS questions (
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view questions" ON questions FOR SELECT USING (true);
 CREATE POLICY "Users can create questions" ON questions FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can update own questions" ON questions FOR UPDATE TO authenticated USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own questions" ON questions FOR DELETE TO authenticated USING (auth.uid() = author_id);
 
 CREATE TABLE IF NOT EXISTS answers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -466,6 +491,8 @@ CREATE TABLE IF NOT EXISTS answers (
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view answers" ON answers FOR SELECT USING (true);
 CREATE POLICY "Users can create answers" ON answers FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can update own answers" ON answers FOR UPDATE TO authenticated USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own answers" ON answers FOR DELETE TO authenticated USING (auth.uid() = author_id);
 
 -- ============================================================================
 -- 7. COMMUNITY - REVIEWS
@@ -491,6 +518,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view published reviews" ON reviews FOR SELECT USING (true);
 CREATE POLICY "Users can create reviews" ON reviews FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can update own reviews" ON reviews FOR UPDATE TO authenticated USING (auth.uid() = author_id);
+CREATE POLICY "Users can delete own reviews" ON reviews FOR DELETE TO authenticated USING (auth.uid() = author_id);
+CREATE POLICY "Staff can manage reviews" ON reviews FOR ALL TO authenticated USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 CREATE TABLE IF NOT EXISTS review_helpfuls (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -667,6 +697,8 @@ CREATE TABLE IF NOT EXISTS contacts (
 
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage contacts" ON contacts FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
+CREATE POLICY "Authenticated users can submit contacts" ON contacts FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Anonymous users can submit contacts" ON contacts FOR INSERT TO anon WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS admin_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -680,6 +712,7 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 
 ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins view logs" ON admin_logs FOR SELECT USING (check_user_role(ARRAY['Admin']));
+CREATE POLICY "Staff can insert logs" ON admin_logs FOR INSERT TO authenticated WITH CHECK (check_user_role(ARRAY['Admin', 'Staff']));
 
 CREATE TABLE IF NOT EXISTS announcements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

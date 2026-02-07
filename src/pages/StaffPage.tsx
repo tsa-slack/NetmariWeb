@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import StaffSidebar from '../components/StaffSidebar';
+import { useQuery } from '../lib/data-access';
 import {
   BookOpen,
   MessageSquare,
@@ -19,25 +20,12 @@ import {
 
 export default function StaffPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [stats, setStats] = useState({
-    pendingStories: 0,
-    pendingReviews: 0,
-    openQuestions: 0,
-    totalReports: 0,
-    activeRentals: 0,
-  });
-  const [recentItems, setRecentItems] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadStats();
-      loadRecentItems();
-    }
-  }, [user, isAdmin, isStaff]);
-
-  const loadStats = async () => {
-    try {
+  // 統計情報を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: stats } = useQuery<any>(
+    async () => {
       const [storiesRes, reviewsRes, questionsRes, rentalsRes] = await Promise.all([
         supabase
           .from('stories')
@@ -57,36 +45,39 @@ export default function StaffPage() {
           .eq('status', 'InProgress'),
       ]);
 
-      setStats({
-        pendingStories: storiesRes.count || 0,
-        pendingReviews: reviewsRes.count || 0,
-        openQuestions: questionsRes.count || 0,
-        totalReports: 0,
-        activeRentals: rentalsRes.count || 0,
-      });
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  };
+      return {
+        success: true,
+        data: {
+          pendingStories: storiesRes.count || 0,
+          pendingReviews: reviewsRes.count || 0,
+          openQuestions: questionsRes.count || 0,
+          totalReports: 0,
+          activeRentals: rentalsRes.count || 0,
+        },
+      };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
-  const loadRecentItems = async () => {
-    try {
+  // 最近の活動を取得
+  const { data: recentItems } = useQuery<Record<string, unknown>[]>(
+    async () => {
       const { data: stories } = await supabase
         .from('stories')
         .select('id, title, created_at, status')
         .order('created_at', { ascending: false })
         .limit(5);
 
-      setRecentItems(
-        (stories || []).map((story) => ({
-          ...(story as any),
-          type: 'story',
-        }))
-      );
-    } catch (error) {
-      console.error('Error loading recent items:', error);
-    }
-  };
+      return {
+        success: true,
+        data: (stories || []).map((story) => ({
+          ...story,
+          type: 'story' as const,
+        })),
+      };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   if (loading) {
     return (
@@ -141,7 +132,7 @@ export default function StaffPage() {
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 lg:p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <Car className="h-6 lg:h-8 w-6 lg:w-8 opacity-80" />
-                  <span className="text-2xl lg:text-3xl font-bold">{stats.activeRentals}</span>
+                  <span className="text-2xl lg:text-3xl font-bold">{stats?.activeRentals || 0}</span>
                 </div>
                 <p className="text-green-100 text-sm lg:text-base">貸出中</p>
               </div>
@@ -149,7 +140,7 @@ export default function StaffPage() {
               <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl p-4 lg:p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <BookOpen className="h-6 lg:h-8 w-6 lg:w-8 opacity-80" />
-                  <span className="text-2xl lg:text-3xl font-bold">{stats.pendingStories}</span>
+                  <span className="text-2xl lg:text-3xl font-bold">{stats?.pendingStories || 0}</span>
                 </div>
                 <p className="text-pink-100 text-sm lg:text-base">承認待ちストーリー</p>
               </div>
@@ -157,7 +148,7 @@ export default function StaffPage() {
               <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 lg:p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <Star className="h-6 lg:h-8 w-6 lg:w-8 opacity-80" />
-                  <span className="text-2xl lg:text-3xl font-bold">{stats.pendingReviews}</span>
+                  <span className="text-2xl lg:text-3xl font-bold">{stats?.pendingReviews || 0}</span>
                 </div>
                 <p className="text-yellow-100 text-sm lg:text-base">承認待ちレビュー</p>
               </div>
@@ -165,7 +156,7 @@ export default function StaffPage() {
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 lg:p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <MessageSquare className="h-6 lg:h-8 w-6 lg:w-8 opacity-80" />
-                  <span className="text-2xl lg:text-3xl font-bold">{stats.openQuestions}</span>
+                  <span className="text-2xl lg:text-3xl font-bold">{stats?.openQuestions || 0}</span>
                 </div>
                 <p className="text-blue-100 text-sm lg:text-base">未回答の質問</p>
               </div>
@@ -173,7 +164,7 @@ export default function StaffPage() {
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 lg:p-6 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <AlertCircle className="h-6 lg:h-8 w-6 lg:w-8 opacity-80" />
-                  <span className="text-2xl lg:text-3xl font-bold">{stats.totalReports}</span>
+                  <span className="text-2xl lg:text-3xl font-bold">{stats?.totalReports || 0}</span>
                 </div>
                 <p className="text-red-100 text-sm lg:text-base">報告された問題</p>
               </div>
@@ -268,13 +259,13 @@ export default function StaffPage() {
 
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">最近の活動</h2>
-              {recentItems.length === 0 ? (
+              {(recentItems || []).length === 0 ? (
                 <p className="text-gray-500 text-center py-8">
                   最近の活動はありません
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {recentItems.map((item) => (
+                  {(recentItems || []).map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"

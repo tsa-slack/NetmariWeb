@@ -8,6 +8,7 @@ import { UserPlus, Eye, EyeOff, Search, CheckCircle, XCircle, Mail } from 'lucid
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { registerSchema, RegisterFormData } from '../lib/schemas';
+import { logger } from '../lib/logger';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -59,7 +60,7 @@ export default function RegisterPage() {
       } else {
         toast.error('郵便番号が見つかりませんでした');
       }
-    } catch (err) {
+    } catch {
       toast.error('住所の検索に失敗しました');
     } finally {
       setSearchingAddress(false);
@@ -81,8 +82,9 @@ export default function RegisterPage() {
       setSubmittedEmail(data.email);
       setRegistrationSuccess(true);
       toast.success('登録が完了しました！メールをご確認ください。');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      console.error(err);
+      logger.error(err);
       toast.error(err.message || '登録に失敗しました');
     }
   };

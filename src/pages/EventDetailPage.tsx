@@ -5,30 +5,14 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { Calendar, MapPin, Users, Clock, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react';
-import type { Database } from '../lib/database.types';
+import { toast } from 'sonner';
 import {
   EventRepository,
   EventParticipantRepository,
   useQuery,
   useRepository,
 } from '../lib/data-access';
-
-type Event = Database['public']['Tables']['events']['Row'] & {
-  organizer?: {
-    first_name: string;
-    last_name: string;
-  };
-};
-
-type Participant = {
-  id: string;
-  user: {
-    first_name: string;
-    last_name: string;
-  };
-  status: string;
-  created_at: string;
-};
+import { logger } from '../lib/logger';
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,13 +25,13 @@ export default function EventDetailPage() {
   const participantRepo = new EventParticipantRepository();
 
   // イベント詳細を取得
-  const { data: event, loading, refetch: refetchEvent } = useQuery<any>(
+  const { data: event, loading } = useQuery<any>( // eslint-disable-line @typescript-eslint/no-explicit-any
     async () => eventRepo.findByIdWithOrganizer(id!),
     { enabled: !!id }
   );
 
   // 参加者一覧を取得
-  const { data: participants, refetch: refetchParticipants } = useQuery<any[]>(
+  const { data: participants, refetch: refetchParticipants } = useQuery<any[]>( // eslint-disable-line @typescript-eslint/no-explicit-any
     async () => participantRepo.findByEventWithUser(id!),
     { enabled: !!id }
   );
@@ -62,14 +46,14 @@ export default function EventDetailPage() {
 
   const handleRegister = async () => {
     if (!user) {
-      alert('参加するにはログインが必要です');
+      toast.warning('参加するにはログインが必要です');
       return;
     }
 
     try {
       const { error } = await (supabase
 
-        .from('event_participants') as any)
+        .from('event_participants'))
 
         .insert({
           event_id: id,
@@ -79,12 +63,11 @@ export default function EventDetailPage() {
 
       if (error) throw error;
 
-      setIsParticipating(true);
-      loadParticipants();
-      alert('イベントに参加登録しました');
+      refetchParticipants();
+      toast.success('イベントに参加登録しました');
     } catch (error) {
-      console.error('Error registering for event:', error);
-      alert('参加登録に失敗しました');
+      logger.error('Error registering for event:', error);
+      toast.error('参加登録に失敗しました');
     }
   };
 
@@ -98,12 +81,11 @@ export default function EventDetailPage() {
 
       if (error) throw error;
 
-      setIsParticipating(false);
-      loadParticipants();
-      alert('参加をキャンセルしました');
+      refetchParticipants();
+      toast.success('参加をキャンセルしました');
     } catch (error) {
-      console.error('Error cancelling participation:', error);
-      alert('キャンセルに失敗しました');
+      logger.error('Error cancelling participation:', error);
+      toast.error('キャンセルに失敗しました');
     }
   };
 
@@ -116,11 +98,11 @@ export default function EventDetailPage() {
 
       if (error) throw error;
 
-      alert('イベントを削除しました');
+      toast.success('イベントを削除しました');
       navigate('/portal/events');
     } catch (error) {
-      console.error('Error deleting event:', error);
-      alert('イベントの削除に失敗しました');
+      logger.error('Error deleting event:', error);
+      toast.error('イベントの削除に失敗しました');
     }
   };
 
@@ -141,7 +123,7 @@ export default function EventDetailPage() {
   const isOrganizer = user && event.organizer_id === user.id;
   const isAdmin = profile?.role === 'Admin';
   const canEdit = isOrganizer || isAdmin;
-  const isFull = event.max_participants && participants.length >= event.max_participants;
+  const isFull = event.max_participants && (participants || []).length >= event.max_participants;
 
   return (
     <Layout>
@@ -288,7 +270,7 @@ export default function EventDetailPage() {
                   参加者
                 </h3>
                 <p className="text-gray-700">
-                  {participants.length}
+                  {(participants || []).length}
                   {event.max_participants ? `/${event.max_participants}` : ''}名
                 </p>
               </div>
@@ -296,11 +278,11 @@ export default function EventDetailPage() {
 
             <div className="border-t pt-8">
               <h3 className="text-2xl font-semibold text-gray-800 mb-6">参加者一覧</h3>
-              {participants.length === 0 ? (
+              {!participants || participants.length === 0 ? (
                 <p className="text-gray-600 text-center py-8">まだ参加者がいません</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {participants.map((participant) => (
+                  {participants.map((participant: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div
                       key={participant.id}
                       className="flex items-center p-4 bg-gray-50 rounded-lg"

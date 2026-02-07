@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -14,6 +14,14 @@ import {
   MapPin,
 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
+
+interface ChecklistData {
+  items?: { label: string; checked: boolean }[];
+  notes?: string;
+}
 
 type Reservation = Database['public']['Tables']['reservations']['Row'] & {
   user?: { first_name: string; last_name: string; email: string; phone_number?: string };
@@ -67,7 +75,6 @@ export default function StaffCheckoutPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading, isStaff, isAdmin } = useAuth();
   const [reservation, setReservation] = useState<Reservation | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pre_rental' | 'handover'>('pre_rental');
   const [preRentalItems, setPreRentalItems] = useState<ChecklistItem[]>(PRE_RENTAL_ITEMS);
   const [handoverItems, setHandoverItems] = useState<ChecklistItem[]>(HANDOVER_ITEMS);
@@ -75,20 +82,14 @@ export default function StaffCheckoutPage() {
   const [handoverNotes, setHandoverNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (user && (isStaff || isAdmin) && id) {
-      loadReservation();
-    }
-  }, [user, isStaff, isAdmin, id]);
+  // 予約データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading } = useQuery<any>(
+    async () => {
+      if (!id) return { success: true, data: null };
 
-  const loadReservation = async () => {
-    if (!id) return;
-
-    try {
       const { data, error } = await (supabase
-
-        .from('reservations') as any)
-
+        .from('reservations'))
         .select(`
           *,
           user:users!reservations_user_id_fkey(first_name, last_name, email, phone_number),
@@ -103,28 +104,24 @@ export default function StaffCheckoutPage() {
 
       if (error) throw error;
       if (!data) {
-        alert('予約が見つかりません');
+        toast.error('予約が見つかりません');
         navigate('/staff');
-        return;
+        return { success: true, data: null };
       }
 
       setReservation(data);
 
       const { data: checklists } = await (supabase
-
-
-        .from('rental_checklists') as any)
-
-
+        .from('rental_checklists'))
         .select('*')
         .eq('reservation_id', id!);
 
       if (checklists) {
-        const preRentalChecklist = checklists.find((c: any) => c.checklist_type === 'pre_rental');
-        const handoverChecklist = checklists.find((c: any) => c.checklist_type === 'handover');
+        const preRentalChecklist = checklists.find((c) => c.checklist_type === 'pre_rental');
+        const handoverChecklist = checklists.find((c) => c.checklist_type === 'handover');
 
         if (preRentalChecklist) {
-          const items = preRentalChecklist.checklist_data as any;
+          const items = preRentalChecklist.checklist_data as ChecklistData;
           if (items.items) {
             setPreRentalItems(items.items);
           }
@@ -134,7 +131,7 @@ export default function StaffCheckoutPage() {
         }
 
         if (handoverChecklist) {
-          const items = handoverChecklist.checklist_data as any;
+          const items = handoverChecklist.checklist_data as ChecklistData;
           if (items.items) {
             setHandoverItems(items.items);
           }
@@ -143,13 +140,11 @@ export default function StaffCheckoutPage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error loading reservation:', error);
-      alert('予約の読み込みに失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(user && (isStaff || isAdmin) && id) }
+  );
 
   const togglePreRentalItem = (itemId: string) => {
     setPreRentalItems((prev) =>
@@ -183,7 +178,7 @@ export default function StaffCheckoutPage() {
       const { data: existingChecklist } = await (supabase
 
 
-        .from('rental_checklists') as any)
+        .from('rental_checklists'))
 
 
         .select('id')
@@ -192,6 +187,7 @@ export default function StaffCheckoutPage() {
         .maybeSingle();
 
       if (existingChecklist) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: any = {
           checklist_data: checklistData,
           notes,
@@ -205,7 +201,7 @@ export default function StaffCheckoutPage() {
         const { error } = await (supabase
 
 
-          .from('rental_checklists') as any)
+          .from('rental_checklists'))
 
 
           .update(updateData)
@@ -213,6 +209,7 @@ export default function StaffCheckoutPage() {
 
         if (error) throw error;
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const insertData: any = {
           reservation_id: id,
           checklist_type: type,
@@ -228,7 +225,7 @@ export default function StaffCheckoutPage() {
         const { error } = await (supabase
 
 
-          .from('rental_checklists') as any)
+          .from('rental_checklists'))
 
 
           .insert(insertData);
@@ -240,25 +237,25 @@ export default function StaffCheckoutPage() {
         if (type === 'handover') {
           const { error: updateError } = await (supabase
 
-            .from('reservations') as any)
+            .from('reservations'))
 
             .update({ status: 'InProgress' })
             .eq('id', id!);
 
           if (updateError) throw updateError;
 
-          alert('引き渡しが完了しました');
+          toast.success('引き渡しが完了しました');
           navigate('/staff');
         } else {
           setActiveTab('handover');
-          alert('貸出前チェックを保存しました');
+          toast.success('貸出前チェックを保存しました');
         }
       } else {
-        alert('チェックリストを保存しました');
+        toast.success('チェックリストを保存しました');
       }
     } catch (error) {
-      console.error('Error saving checklist:', error);
-      alert('保存に失敗しました');
+      logger.error('Error saving checklist:', error);
+      toast.error('保存に失敗しました');
     } finally {
       setSaving(false);
     }

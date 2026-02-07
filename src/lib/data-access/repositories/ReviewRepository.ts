@@ -53,6 +53,7 @@ export class ReviewRepository extends BaseRepository<'reviews'> {
     async findByTargetWithAuthor(
         targetType: string,
         targetId: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<Result<any[]>> {
         try {
             const { data, error } = await supabase

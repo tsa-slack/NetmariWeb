@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -15,6 +15,9 @@ import {
   Edit,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface Story {
   id: string;
@@ -36,8 +39,6 @@ interface Story {
 
 export default function StoryManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loadingStories, setLoadingStories] = useState(true);
   const [filter, setFilter] = useState<'all' | 'Published' | 'Draft' | 'Archived'>(
     'all'
   );
@@ -45,14 +46,11 @@ export default function StoryManagementPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadStories();
-    }
-  }, [user, isAdmin, isStaff, filter]);
-
-  const loadStories = async () => {
-    try {
+  // ストーリー一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: stories, loading: loadingStories, refetch } = useQuery<any[]>(
+    async () => {
+      // フィルター付きクエリ（管理用に直接Supabaseを使用）
       let query = supabase
         .from('stories')
         .select(`
@@ -76,37 +74,35 @@ export default function StoryManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setStories(data || []);
-    } catch (error) {
-      console.error('Error loading stories:', error);
-    } finally {
-      setLoadingStories(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const updateStatus = async (storyId: string, newStatus: string) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updates: any = { status: newStatus };
-      if (newStatus === 'Published' && !stories.find((s) => s.id === storyId)?.published_at) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (newStatus === 'Published' && !(stories || []).find((s: any) => s.id === storyId)?.published_at) {
         updates.published_at = new Date().toISOString();
       }
 
       const { error } = await (supabase
 
 
-        .from('stories') as any)
+        .from('stories'))
 
 
         .update(updates)
         .eq('id', storyId);
 
       if (error) throw error;
-      loadStories();
+      refetch();
     } catch (error) {
-      console.error('Error updating story:', error);
-      alert('ステータスの変更に失敗しました');
+      logger.error('Error updating story:', error);
+      toast.error('ステータスの変更に失敗しました');
     }
   };
 
@@ -122,14 +118,15 @@ export default function StoryManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedStory(null);
-      loadStories();
+      refetch();
     } catch (error) {
-      console.error('Error deleting story:', error);
-      alert('体験記の削除に失敗しました');
+      logger.error('Error deleting story:', error);
+      toast.error('体験記の削除に失敗しました');
     }
   };
 
-  const filteredStories = stories.filter((story) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredStories = (stories || []).filter((story: any) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -200,7 +197,7 @@ export default function StoryManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>

@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
 
 type Activity = Database['public']['Tables']['activities']['Row'];
 
@@ -20,7 +21,6 @@ export default function RentalActivitySelectionPage() {
   const [searchParams] = useSearchParams();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<SelectedActivity[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const startDate = searchParams.get('start') || '';
   const endDate = searchParams.get('end') || '';
@@ -38,15 +38,12 @@ export default function RentalActivitySelectionPage() {
     }
     if (!startDate || !endDate || !days || !vehicleId) {
       navigate('/rental');
-      return;
-    }
-    if (user) {
-      loadActivities();
     }
   }, [user, authLoading, startDate, endDate, days, vehicleId]);
 
-  const loadActivities = async () => {
-    try {
+  // アクティビティデータを取得
+  const { loading } = useQuery<Activity[]>(
+    async () => {
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -55,12 +52,10 @@ export default function RentalActivitySelectionPage() {
 
       if (error) throw error;
       setActivities(data || []);
-    } catch (error) {
-      console.error('Error loading activities:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && startDate && endDate && days && vehicleId) }
+  );
 
   const getDatesInRange = () => {
     const dates: string[] = [];
@@ -115,6 +110,7 @@ export default function RentalActivitySelectionPage() {
 
   const vehicleTotal = vehiclePrice * days;
   const equipmentTotal = equipmentData.reduce(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (sum: number, eq: any) => {
       const pricingType = eq.pricing_type || 'PerDay';
       const itemTotal = pricingType === 'PerUnit'

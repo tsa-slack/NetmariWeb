@@ -1,65 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import { Calendar, User, Car, Package, TrendingUp, DollarSign, Clock, MapPin } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-
-interface Reservation {
-  id: string;
-  user_id: string;
-  rental_vehicle_id: string;
-  start_date: string;
-  end_date: string;
-  days: number;
-  status: string;
-  subtotal: number;
-  tax: number;
-  total: number;
-  payment_method: string | null;
-  payment_status: string | null;
-  created_at: string;
-  user?: {
-    email: string;
-    first_name: string | null;
-    last_name: string | null;
-  };
-  rental_vehicle?: {
-    price_per_day: number;
-    location: string | null;
-    vehicle?: {
-      name: string;
-      type: string | null;
-    };
-  };
-  reservation_equipment?: Array<{
-    id: string;
-    quantity: number;
-    days: number;
-    price_per_day: number;
-    subtotal: number;
-    equipment?: {
-      name: string;
-      category: string | null;
-    };
-  }>;
-  reservation_activities?: Array<{
-    id: string;
-    date: string;
-    participants: number;
-    price: number;
-    activity?: {
-      name: string;
-      duration: string | null;
-    };
-  }>;
-}
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 export default function ReservationManagementPage() {
   const { user, loading: authLoading, isAdmin, isStaff } = useAuth();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [updateStatusModal, setUpdateStatusModal] = useState<{
     id: string;
@@ -67,16 +18,12 @@ export default function ReservationManagementPage() {
   } | null>(null);
   const [newStatus, setNewStatus] = useState<string>('');
 
-  useEffect(() => {
-    loadReservations();
-  }, []);
-
-  const loadReservations = async () => {
-    try {
+  // 予約一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: reservations, loading, refetch } = useQuery<any[]>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('reservations') as any)
-
+        .from('reservations'))
         .select(`
           *,
           user:users(email, first_name, last_name),
@@ -104,13 +51,10 @@ export default function ReservationManagementPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setReservations(data || []);
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: true }
+  );
 
   const handleUpdateStatus = async () => {
     if (!updateStatusModal) return;
@@ -118,7 +62,7 @@ export default function ReservationManagementPage() {
     try {
       const { error } = await (supabase
 
-        .from('reservations') as any)
+        .from('reservations'))
 
         .update({ status: newStatus })
         .eq('id', updateStatusModal.id);
@@ -127,10 +71,10 @@ export default function ReservationManagementPage() {
 
       setUpdateStatusModal(null);
       setNewStatus('');
-      loadReservations();
+      refetch();
     } catch (error) {
-      console.error('Error updating status:', error);
-      alert('ステータスの更新に失敗しました');
+      logger.error('Error updating status:', error);
+      toast.error('ステータスの更新に失敗しました');
     }
   };
 
@@ -165,8 +109,8 @@ export default function ReservationManagementPage() {
   };
 
   const filteredReservations = filterStatus === 'All'
-    ? reservations
-    : reservations.filter(r => r.status === filterStatus);
+    ? (reservations || [])
+    : (reservations || []).filter(r => r.status === filterStatus);
 
   if (authLoading) {
     return (
@@ -335,7 +279,8 @@ export default function ReservationManagementPage() {
                           レンタルギヤ ({reservation.reservation_equipment.length}点)
                         </h4>
                         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                          {reservation.reservation_equipment.map((item) => (
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {reservation.reservation_equipment.map((item: any) => (
                             <div
                               key={item.id}
                               className="flex justify-between items-center text-sm"
@@ -370,7 +315,8 @@ export default function ReservationManagementPage() {
                           アクティビティ ({reservation.reservation_activities.length}件)
                         </h4>
                         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                          {reservation.reservation_activities.map((item) => (
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {reservation.reservation_activities.map((item: any) => (
                             <div
                               key={item.id}
                               className="flex justify-between items-center text-sm"

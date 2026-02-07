@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 
@@ -29,8 +32,6 @@ interface CategoryFormData {
 
 export default function CategoryManagementPage() {
   const { user, loading, isAdmin } = useAuth();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const [filter, setFilter] = useState<'all' | 'vehicle' | 'equipment' | 'partner' | 'contact'>('all');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -47,14 +48,9 @@ export default function CategoryManagementPage() {
     is_active: true,
   });
 
-  useEffect(() => {
-    if (user && isAdmin) {
-      loadCategories();
-    }
-  }, [user, isAdmin, filter]);
-
-  const loadCategories = async () => {
-    try {
+  // カテゴリー一覧を取得
+  const { data: categories, loading: loadingCategories, refetch } = useQuery<Category[]>(
+    async () => {
       let query = supabase
         .from('categories')
         .select('*')
@@ -66,54 +62,50 @@ export default function CategoryManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && isAdmin) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.key || !formData.label_ja) {
-      alert('必須項目を入力してください');
+      toast.warning('必須項目を入力してください');
       return;
     }
 
     try {
       if (editingCategory) {
         const { error } = await (supabase
-          .from('categories') as any)
-          .update(formData as any)
+          .from('categories'))
+          .update(formData)
           .eq('id', editingCategory.id);
 
         if (error) throw error;
-        alert('カテゴリーを更新しました');
+        toast.success('カテゴリーを更新しました');
       } else {
         const { error } = await (supabase
-          .from('categories') as any)
-          .insert(formData as any);
+          .from('categories'))
+          .insert(formData);
 
         if (error) throw error;
-        alert('カテゴリーを登録しました');
+        toast.success('カテゴリーを登録しました');
       }
 
       resetForm();
-      loadCategories();
+      refetch();
     } catch (error) {
-      console.error('Error saving category:', error);
-      alert('カテゴリーの保存に失敗しました');
+      logger.error('Error saving category:', error);
+      toast.error('カテゴリーの保存に失敗しました');
     }
   };
 
   const handleEdit = (category: Category) => {
     setEditingCategory(category);
     setFormData({
-      type: category.type as any,
+      type: category.type,
       key: category.key || '',
       label_ja: category.label_ja || '',
       label_en: category.label_en || '',
@@ -128,7 +120,7 @@ export default function CategoryManagementPage() {
     if (!selectedCategory) return;
 
     if (selectedCategory.is_system) {
-      alert('システムカテゴリーは削除できません');
+      toast.warning('システムカテゴリーは削除できません');
       return;
     }
 
@@ -141,10 +133,10 @@ export default function CategoryManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedCategory(null);
-      loadCategories();
+      refetch();
     } catch (error) {
-      console.error('Error deleting category:', error);
-      alert('カテゴリーの削除に失敗しました');
+      logger.error('Error deleting category:', error);
+      toast.error('カテゴリーの削除に失敗しました');
     }
   };
 
@@ -251,7 +243,7 @@ export default function CategoryManagementPage() {
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        type: e.target.value as any,
+                        type: e.target.value,
                       })
                     }
                     required
@@ -384,7 +376,7 @@ export default function CategoryManagementPage() {
             <Filter className="h-5 w-5 text-gray-500" />
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
+              onChange={(e) => setFilter(e.target.value)}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">すべて</option>
@@ -400,7 +392,7 @@ export default function CategoryManagementPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : categories.length === 0 ? (
+        ) : (categories || []).length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Tag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
@@ -444,7 +436,7 @@ export default function CategoryManagementPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {categories.map((category) => (
+                {(categories || []).map((category) => (
                   <tr key={category.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span

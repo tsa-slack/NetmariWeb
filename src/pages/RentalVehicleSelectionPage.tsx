@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { Car, Calendar, ArrowRight, ArrowLeft } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
 
 type RentalVehicle = Database['public']['Tables']['rental_vehicles']['Row'] & {
   vehicle?: Database['public']['Tables']['vehicles']['Row'];
@@ -15,7 +16,6 @@ export default function RentalVehicleSelectionPage() {
   const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const [rentalVehicles, setRentalVehicles] = useState<RentalVehicle[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const startDate = searchParams.get('start') || '';
   const endDate = searchParams.get('end') || '';
@@ -28,15 +28,12 @@ export default function RentalVehicleSelectionPage() {
     }
     if (!startDate || !endDate || !days) {
       navigate('/rental');
-      return;
-    }
-    if (user) {
-      loadRentalVehicles();
     }
   }, [startDate, endDate, user, authLoading]);
 
-  const loadRentalVehicles = async () => {
-    try {
+  // レンタル車両データを取得
+  const { loading } = useQuery<RentalVehicle[]>(
+    async () => {
       const { data, error } = await supabase
         .from('rental_vehicles')
         .select(`
@@ -48,12 +45,10 @@ export default function RentalVehicleSelectionPage() {
 
       if (error) throw error;
       setRentalVehicles(data || []);
-    } catch (error) {
-      console.error('Error loading rental vehicles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && startDate && endDate && days) }
+  );
 
   const handleSelectVehicle = (rentalVehicleId: string, pricePerDay: number) => {
     if (!user) {

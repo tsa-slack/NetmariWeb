@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
+import { logger } from '../lib/logger';
 
 type UserRole = 'Admin' | 'Staff' | 'Partners' | 'Members';
 
@@ -81,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      logger.error('Error loading user profile:', error);
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
@@ -16,26 +16,22 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export default function SaleVehicleManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [filter, setFilter] = useState<'all' | 'sale' | 'rental' | 'both'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadVehicles();
-    }
-  }, [user, isAdmin, isStaff, filter]);
-
-  const loadVehicles = async () => {
-    try {
+  // 車両一覧を取得
+  const { data: vehicles, loading: loadingVehicles, refetch } = useQuery<Vehicle[]>(
+    async () => {
       let query = supabase
         .from('vehicles')
         .select('*')
@@ -46,15 +42,11 @@ export default function SaleVehicleManagementPage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setVehicles(data || []);
-    } catch (error) {
-      console.error('Error loading vehicles:', error);
-    } finally {
-      setLoadingVehicles(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   const handleDelete = async () => {
     if (!selectedVehicle) return;
@@ -68,14 +60,14 @@ export default function SaleVehicleManagementPage() {
       if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedVehicle(null);
-      loadVehicles();
+      refetch();
     } catch (error) {
-      console.error('Error deleting vehicle:', error);
-      alert('車両の削除に失敗しました');
+      logger.error('Error deleting vehicle:', error);
+      toast.error('車両の削除に失敗しました');
     }
   };
 
-  const filteredVehicles = vehicles.filter((vehicle) => {
+  const filteredVehicles = (vehicles || []).filter((vehicle) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -180,7 +172,7 @@ export default function SaleVehicleManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -256,10 +248,10 @@ export default function SaleVehicleManagementPage() {
                     <div className="absolute top-2 right-2 flex gap-2">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getPurposeColor(
-                          (vehicle as any).purpose
+                          (vehicle as { purpose?: string }).purpose
                         )}`}
                       >
-                        {getPurposeLabel((vehicle as any).purpose)}
+                        {getPurposeLabel((vehicle as { purpose?: string }).purpose)}
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(

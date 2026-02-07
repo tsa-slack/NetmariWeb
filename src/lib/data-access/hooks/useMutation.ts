@@ -36,6 +36,7 @@ export interface UseMutationResult<TData, TVariables> {
  *   }
  * );
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useMutation<TData = any, TVariables = any>(
     mutationFn: (variables: TVariables) => Promise<Result<TData>>,
     options: UseMutationOptions<TData, TVariables> = {}

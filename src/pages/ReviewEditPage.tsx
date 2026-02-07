@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
@@ -6,6 +6,9 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { Star } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Review = Database['public']['Tables']['reviews']['Row'];
 
@@ -14,7 +17,6 @@ export default function ReviewEditPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [review, setReview] = useState<Review | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -23,18 +25,12 @@ export default function ReviewEditPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
-  useEffect(() => {
-    if (id && user) {
-      loadReview();
-    }
-  }, [id, user]);
-
-  const loadReview = async () => {
-    try {
+  // レビューデータを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('reviews') as any)
-
+        .from('reviews'))
         .select('*')
         .eq('id', id!)
         .eq('author_id', user!.id)
@@ -48,23 +44,22 @@ export default function ReviewEditPage() {
         setTitle(data.title || '');
         setContent(data.content);
       }
-    } catch (error) {
-      console.error('Error loading review:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data };
+    },
+    { enabled: !!(id && user) }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!rating) {
-      alert('評価を選択してください');
+      toast.warning('評価を選択してください');
       return;
     }
 
     if (!content.trim()) {
-      alert('レビュー内容を入力してください');
+      toast.warning('レビュー内容を入力してください');
       return;
     }
 
@@ -79,7 +74,7 @@ export default function ReviewEditPage() {
       const { error } = await (supabase
 
 
-        .from('reviews') as any)
+        .from('reviews'))
 
 
         .update({
@@ -95,7 +90,7 @@ export default function ReviewEditPage() {
       const { data: reviews } = await (supabase
 
 
-        .from('reviews') as any)
+        .from('reviews'))
 
 
         .select('rating')
@@ -104,12 +99,13 @@ export default function ReviewEditPage() {
         .eq('is_published', true);
 
       if (reviews) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const avgRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length;
 
         if (review!.target_type === 'Partner') {
           await (supabase
 
-            .from('partners') as any)
+            .from('partners'))
 
             .update({
               rating: avgRating,
@@ -119,11 +115,11 @@ export default function ReviewEditPage() {
         }
       }
 
-      alert('レビューを更新しました');
+      toast.success('レビューを更新しました');
       navigate('/my');
     } catch (error) {
-      console.error('Error updating review:', error);
-      alert('レビューの更新に失敗しました');
+      logger.error('Error updating review:', error);
+      toast.error('レビューの更新に失敗しました');
     } finally {
       setSubmitting(false);
     }

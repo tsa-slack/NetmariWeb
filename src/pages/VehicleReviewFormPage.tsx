@@ -5,6 +5,9 @@ import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { Star, Car, ArrowLeft, Send } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Reservation = Database['public']['Tables']['reservations']['Row'] & {
   rental_vehicle?: {
@@ -24,7 +27,6 @@ export default function VehicleReviewFormPage() {
   const reservationId = searchParams.get('reservation');
 
   const [reservation, setReservation] = useState<Reservation | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -39,20 +41,17 @@ export default function VehicleReviewFormPage() {
     }
 
     if (!reservationId) {
-      alert('予約IDが指定されていません');
+      toast.warning('予約IDが指定されていません');
       navigate('/my-page?tab=reservations');
-      return;
     }
-
-    loadReservation();
   }, [user, reservationId]);
 
-  const loadReservation = async () => {
-    try {
+  // 予約データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading } = useQuery<any>(
+    async () => {
       const { data: reservationData, error: reservationError } = await (supabase
-
-        .from('reservations') as any)
-
+        .from('reservations'))
         .select(`
           *,
           rental_vehicle:rental_vehicles(
@@ -72,48 +71,41 @@ export default function VehicleReviewFormPage() {
       if (reservationError) throw reservationError;
 
       if (!reservationData) {
-        alert('完了した予約が見つかりません');
+        toast.error('完了した予約が見つかりません');
         navigate('/my-page?tab=reservations');
-        return;
+        return { success: true, data: null };
       }
 
       setReservation(reservationData);
 
       const { data: existingReviewData } = await (supabase
-
-
-        .from('reviews') as any)
-
-
+        .from('reviews'))
         .select('id')
         .eq('reservation_id', reservationId!)
         .maybeSingle();
 
       if (existingReviewData) {
         setExistingReview(true);
-        alert('この予約に対するレビューは既に投稿済みです');
+        toast.warning('この予約に対するレビューは既に投稿済みです');
         navigate('/my-page?tab=reservations');
-        return;
+        return { success: true, data: null };
       }
-    } catch (error) {
-      console.error('Error loading reservation:', error);
-      alert('予約情報の読み込みに失敗しました');
-      navigate('/my-page?tab=reservations');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      return { success: true, data: reservationData };
+    },
+    { enabled: !!(user && reservationId) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!reservation?.rental_vehicle?.vehicle?.id) {
-      alert('車両情報が見つかりません');
+      toast.error('車両情報が見つかりません');
       return;
     }
 
     if (!content.trim()) {
-      alert('レビュー内容を入力してください');
+      toast.warning('レビュー内容を入力してください');
       return;
     }
 
@@ -122,7 +114,7 @@ export default function VehicleReviewFormPage() {
     try {
       const { error } = await (supabase
 
-        .from('reviews') as any)
+        .from('reviews'))
 
         .insert({
         target_type: 'Vehicle',
@@ -136,11 +128,12 @@ export default function VehicleReviewFormPage() {
 
       if (error) throw error;
 
-      alert('レビューを投稿しました');
+      toast.success('レビューを投稿しました');
       navigate(`/vehicles/${reservation.rental_vehicle.vehicle.id}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('Error submitting review:', error);
-      alert(error.message || 'レビューの投稿に失敗しました');
+      logger.error('Error submitting review:', error);
+      toast.error(error.message || 'レビューの投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }

@@ -47,6 +47,7 @@ export type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like'
 /**
  * フィルター条件
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface FilterCondition<T = any> {
     field: string;
     operator: FilterOperator;
@@ -60,6 +61,7 @@ export class DataAccessError extends Error {
     constructor(
         message: string,
         public code?: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         public details?: any
     ) {
         super(message);

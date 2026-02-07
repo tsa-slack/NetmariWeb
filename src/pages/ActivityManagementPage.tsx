@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Clock, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface Activity {
   id: string;
@@ -23,12 +26,9 @@ interface Activity {
 
 export default function ActivityManagementPage() {
   const { user, loading: authLoading, isAdmin, isStaff } = useAuth();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [partners, setPartners] = useState<{ id: string; name: string }[]>([]);
 
   const [formData, setFormData] = useState({
     partner_id: '',
@@ -41,13 +41,10 @@ export default function ActivityManagementPage() {
     available_seasons: [] as string[],
   });
 
-  useEffect(() => {
-    loadActivities();
-    loadPartners();
-  }, []);
-
-  const loadActivities = async () => {
-    try {
+  // アクティビティ一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: activities, loading, refetch: refetchActivities } = useQuery<any[]>(
+    async () => {
       const { data, error } = await supabase
         .from('activities')
         .select(`
@@ -57,27 +54,25 @@ export default function ActivityManagementPage() {
         .order('name');
 
       if (error) throw error;
-      setActivities(data || []);
-    } catch (error) {
-      console.error('Error loading activities:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: true }
+  );
 
-  const loadPartners = async () => {
-    try {
+  // パートナー一覧を取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: partners } = useQuery<any[]>(
+    async () => {
       const { data, error } = await supabase
         .from('partners')
         .select('id, name')
         .order('name');
 
       if (error) throw error;
-      setPartners(data || []);
-    } catch (error) {
-      console.error('Error loading partners:', error);
-    }
-  };
+      return { success: true, data: data || [] };
+    },
+    { enabled: true }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,14 +80,14 @@ export default function ActivityManagementPage() {
     try {
       if (editingActivity) {
         const { error } = await (supabase
-          .from('activities') as any)
+          .from('activities'))
           .update(formData)
           .eq('id', editingActivity.id);
 
         if (error) throw error;
       } else {
         const { error } = await (supabase
-          .from('activities') as any)
+          .from('activities'))
           .insert([formData]);
 
         if (error) throw error;
@@ -101,10 +96,10 @@ export default function ActivityManagementPage() {
       setShowForm(false);
       setEditingActivity(null);
       resetForm();
-      loadActivities();
+      refetchActivities();
     } catch (error) {
-      console.error('Error saving activity:', error);
-      alert('アクティビティの保存に失敗しました');
+      logger.error('Error saving activity:', error);
+      toast.error('アクティビティの保存に失敗しました');
     }
   };
 
@@ -116,10 +111,10 @@ export default function ActivityManagementPage() {
         .eq('id', id);
 
       if (error) throw error;
-      loadActivities();
+      refetchActivities();
     } catch (error) {
-      console.error('Error deleting activity:', error);
-      alert('アクティビティの削除に失敗しました');
+      logger.error('Error deleting activity:', error);
+      toast.error('アクティビティの削除に失敗しました');
     } finally {
       setDeleteConfirm(null);
     }
@@ -221,7 +216,8 @@ export default function ActivityManagementPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">選択してください</option>
-                {partners.map((partner) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {(partners || []).map((partner: any) => (
                   <option key={partner.id} value={partner.id}>
                     {partner.name}
                   </option>
@@ -363,7 +359,7 @@ export default function ActivityManagementPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : activities.length === 0 ? (
+        ) : (activities || []).length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
@@ -384,7 +380,8 @@ export default function ActivityManagementPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {activities.map((activity) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(activities || []).map((activity: any) => (
               <div key={activity.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -416,7 +413,7 @@ export default function ActivityManagementPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-3">
-                      {activity.available_seasons.map((season) => (
+                      {activity.available_seasons.map((season: string) => (
                         <span
                           key={season}
                           className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import { Settings, Save, AlertCircle, CheckCircle, Info, Award } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface SystemSetting {
   id: string;
@@ -34,22 +37,15 @@ export default function SystemSettingsPage() {
   const { user, loading, isAdmin } = useAuth();
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [rankSettings, setRankSettings] = useState<RankSettings | null>(null);
-  const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  useEffect(() => {
-    if (user && isAdmin) {
-      loadSettings();
-    }
-  }, [user, isAdmin]);
-
-  const loadSettings = async () => {
-    try {
+  // 設定データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading: loadingSettings } = useQuery<any>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('system_settings') as any)
-
+        .from('system_settings'))
         .select('*')
         .order('key');
 
@@ -58,15 +54,13 @@ export default function SystemSettingsPage() {
 
       // ランク設定を取得
       if (data && data.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const settingWithRank = data.find((s: any) => s.key === 'rank_settings');
         if (settingWithRank) {
           setRankSettings(JSON.parse(settingWithRank.value));
         } else {
-          // rank_settingsカラムから直接取得
           const { data: rankData } = await (supabase
-
-            .from('system_settings') as any)
-
+            .from('system_settings'))
             .select('rank_settings')
             .limit(1)
             .maybeSingle();
@@ -76,12 +70,11 @@ export default function SystemSettingsPage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoadingSettings(false);
-    }
-  };
+
+      return { success: true, data: data || [] };
+    },
+    { enabled: !!(user && isAdmin) }
+  );
 
   const handleToggle = (key: string) => {
     setSettings(
@@ -102,7 +95,7 @@ export default function SystemSettingsPage() {
       for (const setting of settings) {
         const { error } = await (supabase
 
-          .from('system_settings') as any)
+          .from('system_settings'))
 
           .update({ value: setting.value })
           .eq('key', setting.key);
@@ -114,7 +107,7 @@ export default function SystemSettingsPage() {
       if (rankSettings) {
         const { error } = await (supabase
 
-          .from('system_settings') as any)
+          .from('system_settings'))
 
           .update({ rank_settings: rankSettings })
           .limit(1);
@@ -125,8 +118,8 @@ export default function SystemSettingsPage() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('設定の保存に失敗しました');
+      logger.error('Error saving settings:', error);
+      toast.error('設定の保存に失敗しました');
     } finally {
       setSaving(false);
     }

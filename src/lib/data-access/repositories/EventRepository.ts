@@ -35,6 +35,7 @@ export class EventRepository extends BaseRepository<'events'> {
     /**
      * イベントと主催者情報を取得
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findWithOrganizer(id: string): Promise<Result<any>> {
         const query = new QueryBuilder(this.table)
             .select('*, organizer:users(first_name, last_name)')
@@ -46,10 +47,11 @@ export class EventRepository extends BaseRepository<'events'> {
     /**
      * IDでイベントを取得（主催者情報付き）- 詳細ページ用
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByIdWithOrganizer(id: string): Promise<Result<any>> {
         try {
             const { data, error } = await (this.client
-                .from(this.table) as any)
+                .from(this.table))
                 .select(`
           *,
           organizer:users(first_name, last_name)
@@ -67,10 +69,11 @@ export class EventRepository extends BaseRepository<'events'> {
     /**
      * 参加者数を含むイベント一覧を取得
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findAllWithParticipantCount(): Promise<Result<any[]>> {
         try {
             const { data, error } = await (this.client
-                .from(this.table) as any)
+                .from(this.table))
                 .select(`
           *,
           participants:event_participants(count)

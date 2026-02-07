@@ -6,6 +6,7 @@ import { Calendar, MapPin, Users, Plus, Clock } from 'lucide-react';
 import { EventRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
 import type { Row } from '../lib/data-access/base/types';
+import { logger } from '../lib/logger';
 
 type Event = Row<'events'> & {
   organizer?: {
@@ -63,7 +64,7 @@ export default function EventsPage() {
     },
     {
       onError: (err: Error) => {
-        console.error('Error loading events:', err);
+        logger.error('Error loading events:', err);
       },
     }
   );

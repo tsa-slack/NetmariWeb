@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { Car, Save, ArrowLeft } from 'lucide-react';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface VehicleFormData {
   make: string;
@@ -37,23 +40,15 @@ export default function VehicleFormPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
 
-  useEffect(() => {
-    if (isEditing && user && isAdmin) {
-      loadVehicleData();
-    }
-  }, [id, user, isAdmin]);
+  // 編集時に車両データを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { loading: loadingData } = useQuery<any>(
+    async () => {
+      if (!id) return { success: true, data: null };
 
-  const loadVehicleData = async () => {
-    if (!id) return;
-
-    setLoadingData(true);
-    try {
       const { data: rentalData, error: rentalError } = await (supabase
-
-        .from('rental_vehicles') as any)
-
+        .from('rental_vehicles'))
         .select(`
           *,
           vehicle:vehicles(*)
@@ -76,19 +71,17 @@ export default function VehicleFormPage() {
           status: rentalData.status,
         });
       }
-    } catch (error) {
-      console.error('Error loading vehicle:', error);
-      alert('車両データの読み込みに失敗しました');
-    } finally {
-      setLoadingData(false);
-    }
-  };
+
+      return { success: true, data: rentalData };
+    },
+    { enabled: !!(isEditing && user && isAdmin) }
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.make || !formData.model || !formData.location) {
-      alert('必須項目を入力してください');
+      toast.warning('必須項目を入力してください');
       return;
     }
 
@@ -98,7 +91,7 @@ export default function VehicleFormPage() {
       if (isEditing) {
         const { data: rentalVehicle } = await (supabase
 
-          .from('rental_vehicles') as any)
+          .from('rental_vehicles'))
 
           .select('vehicle_id')
           .eq('id', id!)
@@ -107,7 +100,7 @@ export default function VehicleFormPage() {
         if (rentalVehicle) {
           const { error: vehicleError } = await (supabase
 
-            .from('vehicles') as any)
+            .from('vehicles'))
 
             .update({
               make: formData.make,
@@ -124,7 +117,7 @@ export default function VehicleFormPage() {
           const { error: rentalError } = await (supabase
 
 
-            .from('rental_vehicles') as any)
+            .from('rental_vehicles'))
 
 
             .update({
@@ -137,11 +130,11 @@ export default function VehicleFormPage() {
           if (rentalError) throw rentalError;
         }
 
-        alert('車両を更新しました');
+        toast.success('車両を更新しました');
       } else {
         const { data: vehicleData, error: vehicleError } = await (supabase
 
-          .from('vehicles') as any)
+          .from('vehicles'))
 
           .insert({
             name: `${formData.make} ${formData.model}`,
@@ -161,7 +154,7 @@ export default function VehicleFormPage() {
         const { error: rentalError } = await (supabase
 
 
-          .from('rental_vehicles') as any)
+          .from('rental_vehicles'))
 
 
           .insert({
@@ -173,13 +166,13 @@ export default function VehicleFormPage() {
 
         if (rentalError) throw rentalError;
 
-        alert('車両を登録しました');
+        toast.success('車両を登録しました');
       }
 
       navigate('/admin/vehicles');
     } catch (error) {
-      console.error('Error saving vehicle:', error);
-      alert('車両の保存に失敗しました');
+      logger.error('Error saving vehicle:', error);
+      toast.error('車両の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }

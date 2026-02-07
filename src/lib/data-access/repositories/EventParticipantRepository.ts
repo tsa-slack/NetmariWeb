@@ -11,10 +11,11 @@ export class EventParticipantRepository {
     /**
      * イベントの参加者一覧を取得（ユーザー情報付き）
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async findByEventWithUser(eventId: string): Promise<Result<any[]>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select(`
           id,
           status,
@@ -41,7 +42,7 @@ export class EventParticipantRepository {
     async checkParticipation(eventId: string, userId: string): Promise<Result<boolean>> {
         try {
             const { data, error } = await (supabase
-                .from(this.table) as any)
+                .from(this.table))
                 .select('id')
                 .eq('event_id', eventId)
                 .eq('user_id', userId)

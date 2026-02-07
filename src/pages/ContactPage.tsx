@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { Mail, Phone, MessageSquare, Send, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 export default function ContactPage() {
   const { user, profile } = useAuth();
@@ -44,7 +46,7 @@ export default function ContactPage() {
     try {
       const { error } = await (supabase
 
-        .from('contacts') as any)
+        .from('contacts'))
 
         .insert([
         {
@@ -62,8 +64,8 @@ export default function ContactPage() {
 
       setSubmitted(true);
     } catch (error) {
-      console.error('Error submitting contact form:', error);
-      alert('お問い合わせの送信に失敗しました。もう一度お試しください。');
+      logger.error('Error submitting contact form:', error);
+      toast.error('お問い合わせの送信に失敗しました。もう一度お試しください。');
     } finally {
       setLoading(false);
     }

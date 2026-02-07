@@ -1,5 +1,7 @@
 import { EventRepository, useQuery, useMutation, useRepository } from '../index';
 import type { Row } from '../base/types';
+import { toast } from 'sonner';
+import { logger } from '../../logger';
 
 /**
  * イベント一覧ページのサンプル実装
@@ -16,13 +18,14 @@ export default function EventsPageExample() {
         console.log('Loaded events:', events.length);
       },
       onError: (err: Error) => {
-        console.error('Failed to load events:', err);
+        logger.error('Failed to load events:', err);
       },
     }
   );
 
   // イベント作成用のミューテーション
   const { mutate: createEvent, loading: creating } = useMutation(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (data: any) => eventRepo.create(data),
     {
       onSuccess: (event: Row<'events'>) => {
@@ -31,7 +34,7 @@ export default function EventsPageExample() {
         refetch();
       },
       onError: (err: Error) => {
-        alert('イベントの作成に失敗しました: ' + err.message);
+        toast.error('イベントの作成に失敗しました: ' + err.message);
       },
     }
   );

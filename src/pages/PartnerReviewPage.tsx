@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
@@ -6,6 +6,9 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { Star } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { useQuery } from '../lib/data-access';
+import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 
@@ -14,7 +17,6 @@ export default function PartnerReviewPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [partner, setPartner] = useState<Partner | null>(null);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -23,41 +25,32 @@ export default function PartnerReviewPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
-  useEffect(() => {
-    if (id) {
-      loadPartner();
-    }
-  }, [id]);
-
-  const loadPartner = async () => {
-    try {
+  // パートナー情報を取得
+  const { loading } = useQuery<Partner | null>(
+    async () => {
       const { data, error } = await (supabase
-
-        .from('partners') as any)
-
+        .from('partners'))
         .select('*')
         .eq('id', id!)
         .maybeSingle();
 
       if (error) throw error;
       setPartner(data);
-    } catch (error) {
-      console.error('Error loading partner:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { success: true, data };
+    },
+    { enabled: !!id }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!rating) {
-      alert('評価を選択してください');
+      toast.warning('評価を選択してください');
       return;
     }
 
     if (!content.trim()) {
-      alert('レビュー内容を入力してください');
+      toast.warning('レビュー内容を入力してください');
       return;
     }
 
@@ -72,7 +65,7 @@ export default function PartnerReviewPage() {
       const { error } = await (supabase
 
 
-        .from('reviews') as any)
+        .from('reviews'))
 
 
         .insert({
@@ -89,7 +82,7 @@ export default function PartnerReviewPage() {
       const { data: reviews } = await (supabase
 
 
-        .from('reviews') as any)
+        .from('reviews'))
 
 
         .select('rating')
@@ -97,10 +90,11 @@ export default function PartnerReviewPage() {
         .eq('target_id', id!);
 
       if (reviews) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const avgRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length;
         await (supabase
 
-          .from('partners') as any)
+          .from('partners'))
 
           .update({
             rating: avgRating,
@@ -109,11 +103,11 @@ export default function PartnerReviewPage() {
           .eq('id', id!);
       }
 
-      alert('レビューを投稿しました');
+      toast.success('レビューを投稿しました');
       navigate(`/partners/${id}`);
     } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('レビューの投稿に失敗しました');
+      logger.error('Error submitting review:', error);
+      toast.error('レビューの投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }

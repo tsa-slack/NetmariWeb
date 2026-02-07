@@ -22,6 +22,7 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
       navigate(redirect);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'ログインに失敗しました');
     } finally {

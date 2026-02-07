@@ -20,7 +20,7 @@ export function GlobalErrorBoundary({ error, resetErrorBoundary }: FallbackProps
 
         {import.meta.env.DEV && (
           <div className="mb-6 p-4 bg-red-50 rounded-lg text-left overflow-auto max-h-48 text-xs font-mono text-red-800">
-            {(error as any).message}
+            {(error instanceof Error ? error.message : String(error))}
           </div>
         )}
 

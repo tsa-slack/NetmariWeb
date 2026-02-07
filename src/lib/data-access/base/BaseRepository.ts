@@ -1,4 +1,5 @@
 import { supabase } from '../../supabase';
+import { logger } from '../../logger';
 import type {
     Result,
     TableName,
@@ -22,7 +23,7 @@ export class BaseRepository<T extends TableName> {
     async findById(id: string): Promise<Result<Row<T> | null>> {
         try {
             const { data, error } = await (supabase
-                .from(this.tableName) as any)
+                .from(this.tableName))
                 .select('*')
                 .eq('id', id)
                 .maybeSingle();
@@ -39,7 +40,7 @@ export class BaseRepository<T extends TableName> {
      */
     async findAll(options?: QueryOptions): Promise<Result<Row<T>[]>> {
         try {
-            let query = (supabase.from(this.tableName) as any).select('*');
+            let query = (supabase.from(this.tableName)).select('*');
 
             if (options?.orderBy) {
                 query = query.order(options.orderBy.column, {
@@ -73,8 +74,8 @@ export class BaseRepository<T extends TableName> {
     async create(input: Insert<T>): Promise<Result<Row<T>>> {
         try {
             const { data, error } = await (supabase
-                .from(this.tableName) as any)
-                .insert(input as any)
+                .from(this.tableName))
+                .insert(input)
                 .select()
                 .single();
 
@@ -91,8 +92,8 @@ export class BaseRepository<T extends TableName> {
     async update(id: string, input: Update<T>): Promise<Result<Row<T>>> {
         try {
             const { data, error } = await (supabase
-                .from(this.tableName) as any)
-                .update(input as any)
+                .from(this.tableName))
+                .update(input)
                 .eq('id', id)
                 .select()
                 .single();
@@ -110,7 +111,7 @@ export class BaseRepository<T extends TableName> {
     async delete(id: string): Promise<Result<void>> {
         try {
             const { error } = await (supabase
-                .from(this.tableName) as any)
+                .from(this.tableName))
                 .delete()
                 .eq('id', id);
 
@@ -126,11 +127,12 @@ export class BaseRepository<T extends TableName> {
      */
     async findWhere(
         field: string,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         value: any,
         options?: QueryOptions
     ): Promise<Result<Row<T>[]>> {
         try {
-            let query = (supabase.from(this.tableName) as any)
+            let query = (supabase.from(this.tableName))
                 .select('*')
                 .eq(field, value);
 
@@ -159,7 +161,7 @@ export class BaseRepository<T extends TableName> {
     async count(): Promise<Result<number>> {
         try {
             const { count, error } = await (supabase
-                .from(this.tableName) as any)
+                .from(this.tableName))
                 .select('*', { count: 'exact', head: true });
 
             if (error) throw error;
@@ -172,13 +174,15 @@ export class BaseRepository<T extends TableName> {
     /**
      * エラーハンドリング
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected handleError(error: any): Error {
         if (error instanceof Error) {
+            logger.error(`[${this.tableName}] ${error.message}`, error);
             return error;
         }
-        return new Error(
-            typeof error === 'string' ? error : 'データベースエラーが発生しました'
-        );
+        const message = typeof error === 'string' ? error : 'データベースエラーが発生しました';
+        logger.error(`[${this.tableName}] ${message}`, error);
+        return new Error(message);
     }
 
     /**
