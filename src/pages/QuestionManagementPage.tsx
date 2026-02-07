@@ -66,22 +66,27 @@ export default function QuestionManagementPage() {
 
       if (questionsError) throw questionsError;
 
-      const { data: answerCounts, error: answersError } = await supabase
-        .from('answers')
+      const { data: answerCounts, error: answersError } = await (supabase
+
+
+        .from('answers') as any)
+
+
         .select('question_id');
 
       if (answersError) throw answersError;
 
       const answerCountMap: Record<string, number> = {};
-      answerCounts?.forEach((answer) => {
+      answerCounts?.forEach((answer: any) => {
         answerCountMap[answer.question_id] = (answerCountMap[answer.question_id] || 0) + 1;
       });
 
-      const questionsWithCounts = (questionsData || []).map((q) => ({
-        ...q,
-        answer_count: answerCountMap[q.id] || 0,
-      }));
-
+      const questionsWithCounts = (questionsData || []).map((q: any) => {
+        return {
+          ...(q as any),
+          answer_count: answerCountMap[(q as any).id] || 0,
+        };
+      });
       setQuestions(questionsWithCounts);
     } catch (error) {
       console.error('Error loading questions:', error);
@@ -92,10 +97,12 @@ export default function QuestionManagementPage() {
 
   const updateStatus = async (questionId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('questions')
+      const { error } = await (supabase
+
+        .from('questions') as any)
+
         .update({ status: newStatus })
-        .eq('id', questionId);
+        .eq('id', questionId!);
 
       if (error) throw error;
       loadQuestions();

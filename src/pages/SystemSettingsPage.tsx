@@ -46,8 +46,10 @@ export default function SystemSettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('system_settings')
+      const { data, error } = await (supabase
+
+        .from('system_settings') as any)
+
         .select('*')
         .order('key');
 
@@ -56,13 +58,15 @@ export default function SystemSettingsPage() {
 
       // ランク設定を取得
       if (data && data.length > 0) {
-        const settingWithRank = data.find(s => s.key === 'rank_settings');
+        const settingWithRank = data.find((s: any) => s.key === 'rank_settings');
         if (settingWithRank) {
           setRankSettings(JSON.parse(settingWithRank.value));
         } else {
           // rank_settingsカラムから直接取得
-          const { data: rankData } = await supabase
-            .from('system_settings')
+          const { data: rankData } = await (supabase
+
+            .from('system_settings') as any)
+
             .select('rank_settings')
             .limit(1)
             .maybeSingle();
@@ -96,8 +100,10 @@ export default function SystemSettingsPage() {
     try {
       // 通常の設定を保存
       for (const setting of settings) {
-        const { error } = await supabase
-          .from('system_settings')
+        const { error } = await (supabase
+
+          .from('system_settings') as any)
+
           .update({ value: setting.value })
           .eq('key', setting.key);
 
@@ -106,8 +112,10 @@ export default function SystemSettingsPage() {
 
       // ランク設定を保存
       if (rankSettings) {
-        const { error } = await supabase
-          .from('system_settings')
+        const { error } = await (supabase
+
+          .from('system_settings') as any)
+
           .update({ rank_settings: rankSettings })
           .limit(1);
 

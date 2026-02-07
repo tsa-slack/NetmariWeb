@@ -72,8 +72,10 @@ export default function ReviewManagementPage() {
 
   const togglePublish = async (review: Review) => {
     try {
-      const { error } = await supabase
-        .from('reviews')
+      const { error } = await (supabase
+
+        .from('reviews') as any)
+
         .update({ is_published: !review.is_published })
         .eq('id', review.id);
 

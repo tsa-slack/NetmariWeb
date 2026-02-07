@@ -42,7 +42,11 @@ export default function ContactPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('contacts').insert([
+      const { error } = await (supabase
+
+        .from('contacts') as any)
+
+        .insert([
         {
           user_id: user?.id || null,
           name: formData.name,

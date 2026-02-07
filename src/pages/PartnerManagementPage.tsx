@@ -220,7 +220,7 @@ export default function PartnerManagementPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                          {getTypeLabel(partner.type)}
+                          {getTypeLabel(partner.type || "")}
                         </span>
                       </div>
                     </div>

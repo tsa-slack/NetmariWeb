@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { MessageCircle, Eye, Edit, Trash2, CheckCircle, ThumbsUp } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { QuestionRepository, AnswerRepository, useQuery, useRepository } from '../lib/data-access';
 
 type Question = Database['public']['Tables']['questions']['Row'] & {
   author?: {
@@ -25,68 +26,42 @@ export default function QuestionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [answerContent, setAnswerContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // リポジトリインスタンスを作成
+  const questionRepo = useRepository(QuestionRepository);
+  const answerRepo = useRepository(AnswerRepository);
+
+  // 質問を取得
+  const { data: question, loading, error, refetch: refetchQuestion } = useQuery<Question | null>(
+    async () => questionRepo.findByIdWithAuthor(id!),
+    { enabled: !!(id && user) }
+  );
+
+  // 回答を取得
+  const { data: answers, refetch: refetchAnswers } = useQuery<Answer[]>(
+    async () => answerRepo.findByQuestionWithAuthor(id!),
+    { enabled: !!(id && user) }
+  );
+
+  // ビュー数増加（初回のみ実行）
   useEffect(() => {
+    const incrementViews = async () => {
+      if (!id) return;
+      try {
+        await (supabase as any).rpc('increment_question_views', { question_id: id });
+      } catch (error) {
+        console.error('Error incrementing views:', error);
+      }
+    };
+
     if (id && user) {
-      loadQuestion();
-      loadAnswers();
       incrementViews();
     }
   }, [id, user]);
 
-  const incrementViews = async () => {
-    try {
-      await supabase.rpc('increment_question_views', { question_id: id });
-    } catch (error) {
-      console.error('Error incrementing views:', error);
-    }
-  };
-
-  const loadQuestion = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setQuestion(data);
-    } catch (error) {
-      console.error('Error loading question:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAnswers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('answers')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .eq('question_id', id)
-        .order('is_accepted', { ascending: false })
-        .order('helpful_count', { ascending: false })
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setAnswers(data || []);
-    } catch (error) {
-      console.error('Error loading answers:', error);
-    }
-  };
 
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +74,8 @@ export default function QuestionDetailPage() {
     try {
       setSubmitting(true);
 
-      const { error } = await supabase
-        .from('answers')
+      const { error } = await (supabase
+        .from('answers') as any)
         .insert({
           question_id: id,
           content: answerContent.trim(),
@@ -110,7 +85,7 @@ export default function QuestionDetailPage() {
       if (error) throw error;
 
       setAnswerContent('');
-      loadAnswers();
+      refetchAnswers(); // useQueryのrefetchを使用
       alert('回答を投稿しました');
     } catch (error) {
       console.error('Error submitting answer:', error);
@@ -122,14 +97,14 @@ export default function QuestionDetailPage() {
 
   const handleMarkAsResolved = async () => {
     try {
-      const { error } = await supabase
-        .from('questions')
+      const { error } = await (supabase
+        .from('questions') as any)
         .update({ status: 'Resolved' })
-        .eq('id', id);
+        .eq('id', id!);
 
       if (error) throw error;
 
-      loadQuestion();
+      refetchQuestion(); // useQueryのrefetchを使用
       alert('質問を解決済みにしました');
     } catch (error) {
       console.error('Error marking as resolved:', error);
@@ -139,19 +114,19 @@ export default function QuestionDetailPage() {
 
   const handleAcceptAnswer = async (answerId: string) => {
     try {
-      await supabase
-        .from('answers')
+      await (supabase
+        .from('answers') as any)
         .update({ is_accepted: false })
-        .eq('question_id', id);
+        .eq('question_id', id!);
 
-      const { error } = await supabase
-        .from('answers')
+      const { error } = await (supabase
+        .from('answers') as any)
         .update({ is_accepted: true })
-        .eq('id', answerId);
+        .eq('id', answerId!);
 
       if (error) throw error;
 
-      loadAnswers();
+      refetchAnswers(); // useQueryのrefetchを使用
       handleMarkAsResolved();
     } catch (error) {
       console.error('Error accepting answer:', error);
@@ -164,7 +139,7 @@ export default function QuestionDetailPage() {
       const { error } = await supabase
         .from('questions')
         .delete()
-        .eq('id', id);
+        .eq('id', id!);
 
       if (error) throw error;
 
@@ -175,6 +150,25 @@ export default function QuestionDetailPage() {
       alert('質問の削除に失敗しました');
     }
   };
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <Link
+              to="/portal/questions"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition inline-block"
+            >
+              Q&A一覧に戻る
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (
@@ -190,7 +184,7 @@ export default function QuestionDetailPage() {
     return <Navigate to="/portal/questions" replace />;
   }
 
-  const isAuthor = user && question.author_id === user.id;
+  const isAuthor = user && question.author && (question.author as any).user_id === user.id;
 
   return (
     <Layout>
@@ -278,16 +272,16 @@ export default function QuestionDetailPage() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
             <MessageCircle className="h-6 w-6 mr-2" />
-            回答 ({answers.length}件)
+            回答 ({answers?.length || 0}件)
           </h2>
 
-          {answers.length === 0 ? (
+          {(answers?.length || 0) === 0 ? (
             <div className="bg-white rounded-xl shadow p-8 text-center text-gray-600">
               まだ回答がありません。最初の回答を投稿しましょう！
             </div>
           ) : (
             <div className="space-y-4">
-              {answers.map((answer) => (
+              {(answers || []).map((answer) => (
                 <div
                   key={answer.id}
                   className={`bg-white rounded-xl shadow-lg p-6 ${

@@ -49,8 +49,10 @@ export default function VehicleReviewFormPage() {
 
   const loadReservation = async () => {
     try {
-      const { data: reservationData, error: reservationError } = await supabase
-        .from('reservations')
+      const { data: reservationData, error: reservationError } = await (supabase
+
+        .from('reservations') as any)
+
         .select(`
           *,
           rental_vehicle:rental_vehicles(
@@ -62,7 +64,7 @@ export default function VehicleReviewFormPage() {
             )
           )
         `)
-        .eq('id', reservationId)
+        .eq('id', reservationId!)
         .eq('user_id', user!.id)
         .eq('status', 'Completed')
         .maybeSingle();
@@ -77,10 +79,14 @@ export default function VehicleReviewFormPage() {
 
       setReservation(reservationData);
 
-      const { data: existingReviewData } = await supabase
-        .from('reviews')
+      const { data: existingReviewData } = await (supabase
+
+
+        .from('reviews') as any)
+
+
         .select('id')
-        .eq('reservation_id', reservationId)
+        .eq('reservation_id', reservationId!)
         .maybeSingle();
 
       if (existingReviewData) {
@@ -114,7 +120,11 @@ export default function VehicleReviewFormPage() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('reviews').insert({
+      const { error } = await (supabase
+
+        .from('reviews') as any)
+
+        .insert({
         target_type: 'Vehicle',
         target_id: reservation.rental_vehicle.vehicle.id,
         reservation_id: reservationId,

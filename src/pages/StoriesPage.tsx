@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, Heart, Eye, Plus, MapPin, Calendar } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { StoryRepository, useQuery, useRepository } from '../lib/data-access';
 
 type Story = Database['public']['Tables']['stories']['Row'] & {
   users?: { first_name: string; last_name: string };
@@ -12,32 +11,34 @@ type Story = Database['public']['Tables']['stories']['Row'] & {
 
 export default function StoriesPage() {
   const { user } = useAuth();
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // リポジトリインスタンスを作成
+  const storyRepo = useRepository(StoryRepository);
 
-  useEffect(() => {
-    loadStories();
-  }, []);
+  // 公開済みストーリーを取得（著者情報付き）
+  const { data: stories, loading, error, refetch } = useQuery<Story[]>(
+    async () => storyRepo.findPublishedWithAuthor(),
+    { refetchOnMount: true }
+  );
 
-  const loadStories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stories')
-        .select(`
-          *,
-          users!stories_author_id_fkey (first_name, last_name)
-        `)
-        .eq('status', 'Published')
-        .order('published_at', { ascending: false });
-
-      if (error) throw error;
-      setStories(data as any || []);
-    } catch (error) {
-      console.error('Error loading stories:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -64,7 +65,7 @@ export default function StoriesPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : stories.length === 0 ? (
+        ) : (stories?.length || 0) === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">まだ体験記はありません</p>
@@ -80,7 +81,7 @@ export default function StoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {stories.map((story) => (
+            {(stories || []).map((story) => (
               <Link
                 key={story.id}
                 to={`/portal/stories/${story.id}`}

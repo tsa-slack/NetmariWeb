@@ -16,7 +16,7 @@ import {
   Lock,
   Mail,
   X,
-} from 'lucide-react';
+  Award} from 'lucide-react';
 import type { Database } from '../lib/database.types';
 
 type RentalVehicle = Database['public']['Tables']['rental_vehicles']['Row'] & {
@@ -173,10 +173,12 @@ export default function RentalConfirmationPage() {
 
   const loadData = async () => {
     try {
-      const { data: vehicleData, error: vehicleError } = await supabase
-        .from('rental_vehicles')
+      const { data: vehicleData, error: vehicleError } = await (supabase
+
+        .from('rental_vehicles') as any)
+
         .select('*, vehicle:vehicles(*)')
-        .eq('id', vehicleId)
+        .eq('id', vehicleId!)
         .maybeSingle();
 
       if (vehicleError) throw vehicleError;
@@ -184,14 +186,16 @@ export default function RentalConfirmationPage() {
 
       if (equipmentData.length > 0) {
         const equipmentIds = equipmentData.map((eq: any) => eq.id);
-        const { data: equipmentList, error: equipmentError } = await supabase
-          .from('equipment')
+        const { data: equipmentList, error: equipmentError } = await (supabase
+
+          .from('equipment') as any)
+
           .select('*')
           .in('id', equipmentIds);
 
         if (equipmentError) throw equipmentError;
 
-        const enrichedEquipment = equipmentList.map((eq) => {
+        const enrichedEquipment = equipmentList.map((eq: any) => {
           const eqData = equipmentData.find((e: any) => e.id === eq.id);
           return {
             ...eq,
@@ -206,15 +210,17 @@ export default function RentalConfirmationPage() {
 
       if (activitiesData.length > 0) {
         const activityIds = activitiesData.map((act: any) => act.id);
-        const { data: activityList, error: activityError } = await supabase
-          .from('activities')
+        const { data: activityList, error: activityError } = await (supabase
+
+          .from('activities') as any)
+
           .select('*')
           .in('id', activityIds);
 
         if (activityError) throw activityError;
 
         const enrichedActivities = activityList
-          .map((act) => {
+          .map((act: any) => {
             const actData = activitiesData.find((a: any) => a.id === act.id);
             return {
               ...act,
@@ -223,15 +229,17 @@ export default function RentalConfirmationPage() {
               price: actData.price,
             };
           })
-          .sort((a, b) => a.date.localeCompare(b.date));
+          .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
         setActivities(enrichedActivities);
       }
 
       // ユーザーのランクと割引率を取得
       if (user) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
+        const { data: userData, error: userError } = await (supabase
+
+          .from('users') as any)
+
           .select('rank')
           .eq('id', user.id)
           .maybeSingle();
@@ -240,8 +248,10 @@ export default function RentalConfirmationPage() {
           setUserRank(userData.rank || 'Bronze');
 
           // ランク設定から割引率を取得
-          const { data: settings } = await supabase
-            .from('system_settings')
+          const { data: settings } = await (supabase
+
+            .from('system_settings') as any)
+
             .select('rank_settings')
             .limit(1)
             .maybeSingle();
@@ -402,8 +412,12 @@ export default function RentalConfirmationPage() {
 
       const totals = calculateTotals();
 
-      const { data: reservation, error: reservationError } = await supabase
-        .from('reservations')
+      const { data: reservation, error: reservationError } = await (supabase
+
+
+        .from('reservations') as any)
+
+
         .insert({
           user_id: user.id,
           rental_vehicle_id: vehicleId,
@@ -430,7 +444,7 @@ export default function RentalConfirmationPage() {
       if (reservationError) throw reservationError;
 
       if (equipment.length > 0) {
-        const equipmentInserts = equipment.map((eq) => {
+        const equipmentInserts = equipment.map((eq: any) => {
           const pricingType = eq.pricing_type || 'PerDay';
           const subtotal = pricingType === 'PerUnit'
             ? eq.price * eq.quantity
@@ -445,15 +459,19 @@ export default function RentalConfirmationPage() {
           };
         });
 
-        const { error: equipmentError } = await supabase
-          .from('reservation_equipment')
+        const { error: equipmentError } = await (supabase
+
+
+          .from('reservation_equipment') as any)
+
+
           .insert(equipmentInserts);
 
         if (equipmentError) throw equipmentError;
       }
 
       if (activities.length > 0) {
-        const activityInserts = activities.map((act) => ({
+        const activityInserts = activities.map((act: any) => ({
           reservation_id: reservation.id,
           activity_id: act.id,
           date: act.date,
@@ -461,8 +479,12 @@ export default function RentalConfirmationPage() {
           price: act.price * act.participants,
         }));
 
-        const { error: activityError } = await supabase
-          .from('reservation_activities')
+        const { error: activityError } = await (supabase
+
+
+          .from('reservation_activities') as any)
+
+
           .insert(activityInserts);
 
         if (activityError) throw activityError;
@@ -596,7 +618,7 @@ export default function RentalConfirmationPage() {
                 <h2 className="text-xl font-semibold text-gray-800">ギア・装備</h2>
               </div>
               <div className="space-y-3">
-                {equipment.map((eq) => {
+                {equipment.map((eq: any) => {
                   const pricingType = eq.pricing_type || 'PerDay';
                   const itemTotal = pricingType === 'PerUnit'
                     ? eq.price * eq.quantity

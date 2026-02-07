@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useMemo } from 'react';
+import { useParams, Link } from 'react-router-dom';
+
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
-import { Car, Calendar, Users, Star, MessageCircle } from 'lucide-react';
+import { Car, Calendar, Star, MessageCircle } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { VehicleRepository, ReviewRepository, useQuery, useRepository } from '../lib/data-access';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -16,62 +16,48 @@ type Review = Database['public']['Tables']['reviews']['Row'] & {
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [averageRating, setAverageRating] = useState(0);
+  
+  // リポジトリインスタンスを作成
+  const vehicleRepo = useRepository(VehicleRepository);
+  const reviewRepo = useRepository(ReviewRepository);
 
-  useEffect(() => {
-    if (id) {
-      loadVehicle();
-      loadReviews();
-    }
-  }, [id]);
+  // 車両情報を取得
+  const { data: vehicle, loading, error } = useQuery<Vehicle | null>(
+    async () => vehicleRepo.findById(id!),
+    { enabled: !!id }
+  );
 
-  const loadVehicle = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+  // レビューを取得
+  const { data: reviews } = useQuery<Review[]>(
+    async () => reviewRepo.findByTargetWithAuthor('Vehicle', id!),
+    { enabled: !!id }
+  );
 
-      if (error) throw error;
-      setVehicle(data);
-    } catch (error) {
-      console.error('Error loading vehicle:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 平均評価を計算
+  const averageRating = useMemo(() => {
+    if (!reviews || reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, review) => acc + (review.rating || 0), 0);
+    return sum / reviews.length;
+  }, [reviews]);
 
-  const loadReviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .eq('target_type', 'Vehicle')
-        .eq('target_id', id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const avgRating =
-          data.reduce((sum, review) => sum + review.rating, 0) / data.length;
-        setAverageRating(avgRating);
-      }
-
-      setReviews(data || []);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    }
-  };
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <Link
+              to="/vehicles"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition inline-block"
+            >
+              車両一覧に戻る
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (
@@ -149,7 +135,7 @@ export default function VehicleDetailPage() {
                   <p className="text-gray-600 mb-4">年式: {vehicle.year}年</p>
                 )}
 
-                {reviews.length > 0 && (
+                {(reviews?.length || 0) > 0 && (
                   <div className="flex items-center space-x-2 mb-4">
                     <div className="flex items-center">
                       {[...Array(5)].map((_, i) => (
@@ -164,7 +150,7 @@ export default function VehicleDetailPage() {
                       ))}
                     </div>
                     <span className="text-gray-600">
-                      {averageRating.toFixed(1)} ({reviews.length}件のレビュー)
+                      {averageRating.toFixed(1)} ({reviews?.length || 0}件のレビュー)
                     </span>
                   </div>
                 )}
@@ -251,18 +237,18 @@ export default function VehicleDetailPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                   <MessageCircle className="h-6 w-6 mr-2" />
-                  レビュー ({reviews.length})
+                  レビュー ({reviews?.length || 0})
                 </h2>
               </div>
 
-              {reviews.length === 0 ? (
+              {(reviews?.length || 0) === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                   <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">まだレビューがありません</p>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {reviews.map((review) => (
+                  {(reviews || []).map((review) => (
                     <div key={review.id} className="bg-gray-50 rounded-lg p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div>

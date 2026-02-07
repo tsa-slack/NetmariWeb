@@ -57,8 +57,10 @@ export default function RentalEquipmentSelectionPage() {
 
   const loadEquipment = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipment')
+      const { data, error } = await (supabase
+
+        .from('equipment') as any)
+
         .select('*')
         .eq('status', 'Available')
         .order('category', { ascending: true })

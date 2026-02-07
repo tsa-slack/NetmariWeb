@@ -87,8 +87,10 @@ export default function VehicleManagementPage() {
 
   const updateStatus = async (vehicleId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('rental_vehicles')
+      const { error } = await (supabase
+
+        .from('rental_vehicles') as any)
+
         .update({ status: newStatus })
         .eq('id', vehicleId);
 

@@ -246,7 +246,7 @@ export default function SaleVehicleManagementPage() {
                     Array.isArray(vehicle.images) &&
                     vehicle.images.length > 0 ? (
                       <img
-                        src={vehicle.images[0]}
+                        src={(vehicle.images as string[])?.[0] || ""}
                         alt={vehicle.name || ''}
                         className="w-full h-full object-cover"
                       />
@@ -256,10 +256,10 @@ export default function SaleVehicleManagementPage() {
                     <div className="absolute top-2 right-2 flex gap-2">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getPurposeColor(
-                          vehicle.purpose
+                          (vehicle as any).purpose
                         )}`}
                       >
-                        {getPurposeLabel(vehicle.purpose)}
+                        {getPurposeLabel((vehicle as any).purpose)}
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(

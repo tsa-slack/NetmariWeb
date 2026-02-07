@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import RouteMap from '../components/RouteMap';
@@ -22,7 +22,6 @@ type RouteStop = Database['public']['Tables']['route_stops']['Row'];
 
 export default function RoutePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [routeName, setRouteName] = useState('');
@@ -108,8 +107,8 @@ export default function RoutePage() {
 
     setSaving(true);
     try {
-      const { error: routeError } = await supabase
-        .from('routes')
+      const { error: routeError } = await (supabase
+        .from('routes') as any)
         .insert({
           user_id: user.id,
           name: routeName,
@@ -147,23 +146,27 @@ export default function RoutePage() {
 
   const loadRoute = async (routeId: string) => {
     try {
-      const { data: route, error: routeError } = await supabase
+      const { data: routeData, error: routeError } = await supabase
         .from('routes')
         .select('*')
         .eq('id', routeId)
         .maybeSingle();
 
       if (routeError) throw routeError;
-      if (!route) {
+      if (!routeData) {
         setMessage('ルートが見つかりませんでした');
         return;
       }
 
-      const { data: stops, error: stopsError } = await supabase
+      const route = routeData as unknown as Route;
+
+      const { data: stopsData, error: stopsError } = await supabase
         .from('route_stops')
         .select('*')
         .eq('route_id', routeId)
         .order('stop_order', { ascending: true });
+        
+      const stops = (stopsData || []) as unknown as RouteStop[];
 
       if (stopsError) {
         console.error('Error loading stops:', stopsError);
@@ -213,8 +216,8 @@ export default function RoutePage() {
 
   const toggleRoutePublic = async (routeId: string, currentIsPublic: boolean) => {
     try {
-      const { error } = await supabase
-        .from('routes')
+      const { error } = await (supabase
+        .from('routes') as any)
         .update({ is_public: !currentIsPublic })
         .eq('id', routeId);
 
@@ -365,8 +368,6 @@ export default function RoutePage() {
                   ルートマップ
                 </h2>
                 <RouteMap
-                  origin={loadedRoute.origin}
-                  destination={loadedRoute.destination}
                   stops={routeStops.map((stop) => ({
                     name: stop.name || '',
                     address: stop.address || '',

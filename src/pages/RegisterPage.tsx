@@ -1,40 +1,49 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '../components/Layout';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
 import { UserPlus, Eye, EyeOff, Search, CheckCircle, XCircle, Mail } from 'lucide-react';
 
+import { useAuth } from '../contexts/AuthContext';
+import Layout from '../components/Layout';
+import { registerSchema, RegisterFormData } from '../lib/schemas';
+
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [prefecture, setPrefecture] = useState('');
-  const [city, setCity] = useState('');
-  const [addressLine, setAddressLine] = useState('');
-  const [building, setBuilding] = useState('');
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
+
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+    trigger,
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      agreedToTerms: false,
+    },
+  });
+
+  const password = watch('password');
+  const confirmPassword = watch('confirmPassword');
+  const postalCode = watch('postalCode');
+
   const searchAddress = async () => {
     if (!postalCode || postalCode.length < 7) {
-      setError('郵便番号は7桁で入力してください');
+      toast.error('郵便番号は7桁で入力してください');
       return;
     }
 
     setSearchingAddress(true);
-    setError('');
-
     try {
       const cleanPostalCode = postalCode.replace(/[^0-9]/g, '');
       const response = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleanPostalCode}`);
@@ -42,55 +51,39 @@ export default function RegisterPage() {
 
       if (data.status === 200 && data.results && data.results.length > 0) {
         const result = data.results[0];
-        setPrefecture(result.address1);
-        setCity(result.address2 + result.address3);
+        setValue('prefecture', result.address1);
+        setValue('city', result.address2 + result.address3);
+        // Trigger validation for these fields to clear any errors
+        trigger(['prefecture', 'city']);
+        toast.success('住所を検索しました');
       } else {
-        setError('郵便番号が見つかりませんでした');
+        toast.error('郵便番号が見つかりませんでした');
       }
     } catch (err) {
-      setError('住所の検索に失敗しました');
+      toast.error('住所の検索に失敗しました');
     } finally {
       setSearchingAddress(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!agreedToTerms) {
-      setError('利用規約とプライバシーポリシーに同意してください');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('パスワードが一致しません');
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('パスワードは8文字以上で入力してください');
-      return;
-    }
-
-    setLoading(true);
-
+  const onSubmit = async (data: RegisterFormData) => {
     try {
-      await signUp(email, password, {
-        firstName,
-        lastName,
-        phoneNumber,
-        postalCode,
-        prefecture,
-        city,
-        addressLine,
-        building,
+      await signUp(data.email, data.password, {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneNumber: data.phoneNumber,
+        postalCode: data.postalCode,
+        prefecture: data.prefecture,
+        city: data.city,
+        addressLine: data.addressLine,
+        building: data.building,
       });
+      setSubmittedEmail(data.email);
       setRegistrationSuccess(true);
+      toast.success('登録が完了しました！メールをご確認ください。');
     } catch (err: any) {
-      setError(err.message || '登録に失敗しました');
-    } finally {
-      setLoading(false);
+      console.error(err);
+      toast.error(err.message || '登録に失敗しました');
     }
   };
 
@@ -108,7 +101,7 @@ export default function RegisterPage() {
                   登録が完了しました
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  {email} にメールを送信しました
+                  {submittedEmail} にメールを送信しました
                 </p>
               </div>
 
@@ -159,13 +152,7 @@ export default function RegisterPage() {
               <p className="text-gray-600 mt-2">無料でアカウント作成</p>
             </div>
 
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -173,12 +160,13 @@ export default function RegisterPage() {
                   </label>
                   <input
                     type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('lastName')}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.lastName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="山田"
-                    required
                   />
+                  {errors.lastName && <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -186,12 +174,13 @@ export default function RegisterPage() {
                   </label>
                   <input
                     type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('firstName')}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.firstName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="太郎"
-                    required
                   />
+                  {errors.firstName && <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>}
                 </div>
               </div>
 
@@ -201,12 +190,13 @@ export default function RegisterPage() {
                 </label>
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  {...register('email')}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                    errors.email ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                   placeholder="your@email.com"
-                  required
                 />
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
               </div>
 
               <div>
@@ -215,12 +205,13 @@ export default function RegisterPage() {
                 </label>
                 <input
                   type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  {...register('phoneNumber')}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                    errors.phoneNumber ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                   placeholder="090-1234-5678"
-                  required
                 />
+                {errors.phoneNumber && <p className="mt-1 text-xs text-red-600">{errors.phoneNumber.message}</p>}
               </div>
 
               <div>
@@ -230,11 +221,11 @@ export default function RegisterPage() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('postalCode')}
+                    className={`flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.postalCode ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="1234567"
-                    required
                     maxLength={8}
                   />
                   <button
@@ -244,10 +235,10 @@ export default function RegisterPage() {
                     className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 transition flex items-center gap-2"
                   >
                     <Search className="h-4 w-4" />
-                    {searchingAddress ? '検索中...' : '住所検索'}
+                    {searchingAddress ? '...' : '検索'}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">ハイフンなしで入力してください</p>
+                {errors.postalCode && <p className="mt-1 text-xs text-red-600">{errors.postalCode.message}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -257,12 +248,13 @@ export default function RegisterPage() {
                   </label>
                   <input
                     type="text"
-                    value={prefecture}
-                    onChange={(e) => setPrefecture(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('prefecture')}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.prefecture ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="東京都"
-                    required
                   />
+                  {errors.prefecture && <p className="mt-1 text-xs text-red-600">{errors.prefecture.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,12 +262,13 @@ export default function RegisterPage() {
                   </label>
                   <input
                     type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('city')}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.city ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="渋谷区"
-                    required
                   />
+                  {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>}
                 </div>
               </div>
 
@@ -285,12 +278,13 @@ export default function RegisterPage() {
                 </label>
                 <input
                   type="text"
-                  value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  {...register('addressLine')}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                    errors.addressLine ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                   placeholder="1-2-3"
-                  required
                 />
+                {errors.addressLine && <p className="mt-1 text-xs text-red-600">{errors.addressLine.message}</p>}
               </div>
 
               <div>
@@ -299,8 +293,7 @@ export default function RegisterPage() {
                 </label>
                 <input
                   type="text"
-                  value={building}
-                  onChange={(e) => setBuilding(e.target.value)}
+                  {...register('building')}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   placeholder="〇〇マンション 101号室"
                 />
@@ -313,12 +306,11 @@ export default function RegisterPage() {
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    {...register('password')}
+                    className={`w-full px-4 py-2.5 pr-12 border rounded-lg focus:ring-2 focus:border-transparent transition ${
+                      errors.password ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="••••••••"
-                    required
-                    minLength={8}
                   />
                   <button
                     type="button"
@@ -328,7 +320,8 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">8文字以上</p>
+                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
+                {!errors.password && <p className="mt-1 text-xs text-gray-500">8文字以上</p>}
               </div>
 
               <div>
@@ -338,18 +331,15 @@ export default function RegisterPage() {
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    {...register('confirmPassword')}
                     className={`w-full px-4 py-2.5 pr-20 border rounded-lg focus:ring-2 focus:border-transparent transition ${
-                      confirmPassword && password && password === confirmPassword
-                        ? 'border-green-300 focus:ring-green-500'
-                        : confirmPassword && password && password !== confirmPassword
+                      errors.confirmPassword
                         ? 'border-red-300 focus:ring-red-500'
+                        : confirmPassword && password && password === confirmPassword
+                        ? 'border-green-300 focus:ring-green-500'
                         : 'border-gray-300 focus:ring-blue-500'
                     }`}
                     placeholder="••••••••"
-                    required
-                    minLength={8}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     {confirmPassword && password && (
@@ -368,8 +358,8 @@ export default function RegisterPage() {
                     </button>
                   </div>
                 </div>
-                {confirmPassword && password && password !== confirmPassword && (
-                  <p className="mt-1 text-xs text-red-600">パスワードが一致しません</p>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>
                 )}
               </div>
 
@@ -377,10 +367,8 @@ export default function RegisterPage() {
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    {...register('agreedToTerms')}
                     className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    required
                   />
                   <span className="text-sm text-gray-700">
                     <Link to="/terms" target="_blank" className="text-blue-600 hover:text-blue-700 font-medium underline">
@@ -393,14 +381,15 @@ export default function RegisterPage() {
                     に同意します <span className="text-red-500">*</span>
                   </span>
                 </label>
+                {errors.agreedToTerms && <p className="mt-1 text-xs text-red-600">{errors.agreedToTerms.message}</p>}
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isSubmitting}
                 className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
               >
-                {loading ? '登録中...' : '登録する'}
+                {isSubmitting ? '登録中...' : '登録する'}
               </button>
             </form>
 

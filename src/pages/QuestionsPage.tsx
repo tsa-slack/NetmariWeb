@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { MessageCircle, Plus, Eye, CheckCircle } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { QuestionRepository, useQuery, useRepository } from '../lib/data-access';
 
 type Question = Database['public']['Tables']['questions']['Row'] & {
   author?: {
@@ -16,58 +16,38 @@ type Question = Database['public']['Tables']['questions']['Row'] & {
 
 export default function QuestionsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  useEffect(() => {
-    loadQuestions();
-  }, [filter, categoryFilter]);
+  // リポジトリインスタンスを作成
+  const questionRepo = useRepository(QuestionRepository);
 
-  const loadQuestions = async () => {
-    try {
-      let query = supabase
-        .from('questions')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .order('created_at', { ascending: false });
+  // すべての質問を取得（著者情報と回答数付き）
+  const { data: allQuestions, loading, error, refetch } = useQuery<Question[]>(
+    async () => questionRepo.findAllWithAuthorAndAnswerCount(),
+    { refetchOnMount: true }
+  );
 
-      if (filter === 'open') {
-        query = query.eq('status', 'Open');
-      } else if (filter === 'resolved') {
-        query = query.eq('status', 'Resolved');
-      }
+  // クライアント側でフィルタリング
+  const questions = useMemo(() => {
+    if (!allQuestions) return [];
+    
+    let filtered = [...allQuestions];
 
-      if (categoryFilter !== 'all') {
-        query = query.eq('category', categoryFilter);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      if (data) {
-        const questionsWithCounts = await Promise.all(
-          data.map(async (question) => {
-            const { count } = await supabase
-              .from('answers')
-              .select('*', { count: 'exact', head: true })
-              .eq('question_id', question.id);
-
-            return { ...question, answer_count: count || 0 };
-          })
-        );
-        setQuestions(questionsWithCounts);
-      }
-    } catch (error) {
-      console.error('Error loading questions:', error);
-    } finally {
-      setLoading(false);
+    // ステータスフィルター
+    if (filter === 'open') {
+      filtered = filtered.filter((q) => q.status === 'Open');
+    } else if (filter === 'resolved') {
+      filtered = filtered.filter((q) => q.status === 'Resolved');
     }
-  };
+
+    // カテゴリフィルター
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((q) => q.category === categoryFilter);
+    }
+
+    return filtered;
+  }, [allQuestions, filter, categoryFilter]);
 
   if (authLoading) {
     return (
@@ -81,6 +61,25 @@ export default function QuestionsPage() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   const categories = ['レンタル', '車両', 'ルート', '協力店', 'その他'];
@@ -167,7 +166,7 @@ export default function QuestionsPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : questions.length === 0 ? (
+        ) : (questions?.length || 0) === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">質問がありません</p>
@@ -181,7 +180,7 @@ export default function QuestionsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {questions.map((question) => (
+            {(questions || []).map((question) => (
               <Link
                 key={question.id}
                 to={`/portal/questions/${question.id}`}

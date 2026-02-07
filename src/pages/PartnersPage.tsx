@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { MapPin, Star, Search, Filter } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import { PartnerRepository, useQuery, useRepository } from '../lib/data-access';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 
@@ -17,40 +17,26 @@ const PARTNER_TYPES = [
 ];
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [filteredPartners, setFilteredPartners] = useState<Partner[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'newest'>('rating');
 
-  useEffect(() => {
-    loadPartners();
-  }, []);
+  // リポジトリインスタンスを作成
+  const partnerRepo = useRepository(PartnerRepository);
 
-  useEffect(() => {
-    filterAndSortPartners();
-  }, [partners, searchQuery, selectedType, sortBy]);
+  // すべてのパートナーを取得
+  const { data: partners, loading, error, refetch } = useQuery<Partner[]>(
+    async () => partnerRepo.findAll(),
+    { refetchOnMount: true }
+  );
 
-  const loadPartners = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('partners')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPartners(data || []);
-    } catch (error) {
-      console.error('Error loading partners:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterAndSortPartners = () => {
+  // クライアント側でフィルタリングとソート
+  const filteredPartners = useMemo(() => {
+    if (!partners) return [];
+    
     let filtered = [...partners];
 
+    // 検索フィルター
     if (searchQuery) {
       filtered = filtered.filter(
         (p) =>
@@ -60,10 +46,12 @@ export default function PartnersPage() {
       );
     }
 
+    // タイプフィルター
     if (selectedType !== 'all') {
       filtered = filtered.filter((p) => p.type === selectedType);
     }
 
+    // ソート
     filtered.sort((a, b) => {
       if (sortBy === 'rating') {
         return (b.rating || 0) - (a.rating || 0);
@@ -74,13 +62,32 @@ export default function PartnersPage() {
       }
     });
 
-    setFilteredPartners(filtered);
-  };
+    return filtered;
+  }, [partners, searchQuery, selectedType, sortBy]);
 
   const getTypeLabel = (type: string) => {
     const partnerType = PARTNER_TYPES.find((t) => t.value === type);
     return partnerType ? partnerType.label : type;
   };
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -140,7 +147,7 @@ export default function PartnersPage() {
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">
-              {partners.length === 0
+              {(partners?.length || 0) === 0
                 ? '現在、協力店情報はありません'
                 : '条件に一致する協力店が見つかりませんでした'}
             </p>

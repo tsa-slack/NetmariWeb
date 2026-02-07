@@ -57,6 +57,8 @@ import CategoryManagementPage from './pages/CategoryManagementPage';
 import StaffCheckoutPage from './pages/StaffCheckoutPage';
 import StaffReturnPage from './pages/StaffReturnPage';
 
+import { Toaster } from 'sonner';
+
 function App() {
   return (
     <AuthProvider>
@@ -133,6 +135,7 @@ function App() {
           <Route path="/terms" element={<TermsOfServicePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <Toaster position="top-right" richColors />
       </BrowserRouter>
     </AuthProvider>
   );

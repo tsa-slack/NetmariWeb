@@ -31,10 +31,12 @@ export default function PartnerReviewPage() {
 
   const loadPartner = async () => {
     try {
-      const { data, error } = await supabase
-        .from('partners')
+      const { data, error } = await (supabase
+
+        .from('partners') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .maybeSingle();
 
       if (error) throw error;
@@ -67,7 +69,13 @@ export default function PartnerReviewPage() {
       setSubmitting(true);
       setShowConfirmModal(false);
 
-      const { error } = await supabase.from('reviews').insert({
+      const { error } = await (supabase
+
+
+        .from('reviews') as any)
+
+
+        .insert({
         target_type: 'Partner',
         target_id: id,
         author_id: user!.id,
@@ -78,21 +86,27 @@ export default function PartnerReviewPage() {
 
       if (error) throw error;
 
-      const { data: reviews } = await supabase
-        .from('reviews')
+      const { data: reviews } = await (supabase
+
+
+        .from('reviews') as any)
+
+
         .select('rating')
         .eq('target_type', 'Partner')
-        .eq('target_id', id);
+        .eq('target_id', id!);
 
       if (reviews) {
-        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-        await supabase
-          .from('partners')
+        const avgRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length;
+        await (supabase
+
+          .from('partners') as any)
+
           .update({
             rating: avgRating,
             review_count: reviews.length,
           })
-          .eq('id', id);
+          .eq('id', id!);
       }
 
       alert('レビューを投稿しました');

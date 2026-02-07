@@ -6,6 +6,16 @@ import { supabase } from '../lib/supabase';
 import { User, Calendar, Heart, Settings, BookOpen, Eye, Plus, Bell, Shield, XCircle, ChevronDown, ChevronUp, Star, Edit, Trash2, EyeOff, Car, MapPin, Save, X, Mail, Phone, UserCircle, Route, MessageSquare, CheckCircle, Award } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import ConfirmModal from '../components/ConfirmModal';
+import { 
+  StoryRepository, 
+  ReviewRepository, 
+  ReservationRepository, 
+  RouteRepository,
+  useQuery, 
+  useRepository,
+  useMutation
+} from '../lib/data-access';
+import type { Row } from '../lib/data-access/base/types';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -63,12 +73,88 @@ type UserRoute = Database['public']['Tables']['routes']['Row'];
 
 export default function MyPage() {
   const { user, profile, loading } = useAuth();
-  const [myStories, setMyStories] = useState<Story[]>([]);
-  const [myReviews, setMyReviews] = useState<Review[]>([]);
-  const [myReservations, setMyReservations] = useState<Reservation[]>([]);
-  const [storiesLoading, setStoriesLoading] = useState(true);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-  const [reservationsLoading, setReservationsLoading] = useState(true);
+  
+  // リポジトリインスタンスを作成
+  const storyRepo = useRepository(StoryRepository);
+  const reviewRepo = useRepository(ReviewRepository);
+  const reservationRepo = useRepository(ReservationRepository);
+  const routeRepo = useRepository(RouteRepository);
+
+  // ストーリーデータを取得
+  const { data: myStories, loading: storiesLoading } = useQuery<Row<'stories'>[]>(
+    async () => {
+      if (!user?.id) return { success: true, data: [] } as const;
+      return storyRepo.findByUser(user.id);
+    },
+    { enabled: !!user?.id }
+  );
+
+  // レビューデータを取得（パートナー名付き）
+  const { data: myReviews, loading: reviewsLoading } = useQuery<Review[]>(
+    async () => {
+      if (!user?.id) return { success: true, data: [] } as const;
+      
+      const result = await reviewRepo.findByUser(user.id);
+      if (!result.success) return result;
+
+      // パートナー名を取得
+      const reviewsWithPartner = await Promise.all(
+        result.data.map(async (review) => {
+          if (review.target_type === 'Partner' && review.target_id) {
+            const { data: partner } = await supabase
+              .from('partners')
+              .select('name')
+              .eq('id', review.target_id)
+              .maybeSingle();
+            
+            return {
+              ...review,
+              partner_name: partner?.name,
+            } as Review;
+          }
+          return review as Review;
+        })
+      );
+
+      return { success: true, data: reviewsWithPartner } as const;
+    },
+    { enabled: !!user?.id }
+  );
+
+  // 予約データを取得
+  const { data: myReservations, loading: reservationsLoading } = useQuery<Reservation[]>(
+    async () => {
+      if (!user?.id) return { success: true, data: [] } as const;
+      
+      const result = await reservationRepo.findByUser(user.id);
+      if (!result.success) return result;
+
+      // レンタル車両情報と機器・アクティビティ情報を取得
+      const reservationsWithDetails = await Promise.all(
+        result.data.map(async (reservation) => {
+          const details: any = { ...reservation };
+
+          // レンタル車両情報を取得
+          if (reservation.rental_vehicle_id) {
+            const { data: rentalVehicle } = await supabase
+              .from('rental_vehicles')
+              .select('location, vehicle:vehicles(name, manufacturer, images)')
+              .eq('id', reservation.rental_vehicle_id)
+              .maybeSingle();
+            
+            details.rental_vehicle = rentalVehicle;
+          }
+
+          return details as Reservation;
+        })
+      );
+
+      return { success: true, data: reservationsWithDetails } as const;
+    },
+    { enabled: !!user?.id }
+  );
+
+  // 従来の状態管理（お気に入り、ルートなど）
   const [myPartnerFavorites, setMyPartnerFavorites] = useState<PartnerFavorite[]>([]);
   const [myVehicleFavorites, setMyVehicleFavorites] = useState<VehicleFavorite[]>([]);
   const [myStoryFavorites, setMyStoryFavorites] = useState<StoryFavorite[]>([]);
@@ -76,7 +162,7 @@ export default function MyPage() {
   const [favoriteTab, setFavoriteTab] = useState<'partners' | 'vehicles' | 'stories'>('partners');
   const [myRoutes, setMyRoutes] = useState<UserRoute[]>([]);
   const [routesLoading, setRoutesLoading] = useState(true);
-  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
+  // ルート展開機能は将来実装予定
 
   const [activeTab, setActiveTab] = useState<'profile' | 'reservations' | 'favorites' | 'routes' | 'stories' | 'reviews' | 'settings'>('profile');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -86,7 +172,7 @@ export default function MyPage() {
   const [userSettings, setUserSettings] = useState<UserProfile | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [suspendReason, setSuspendReason] = useState('');
+  const [suspendReason] = useState('');
   const [showDeleteReviewModal, setShowDeleteReviewModal] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState<string | null>(null);
   const [showDeleteRouteModal, setShowDeleteRouteModal] = useState(false);
@@ -126,9 +212,10 @@ export default function MyPage() {
 
   useEffect(() => {
     if (user) {
-      loadMyStories();
-      loadMyReviews();
-      loadMyReservations();
+      // useQueryで自動的にフェッチされるため、これらは不要
+      // loadMyStories(); - 削除
+      // loadMyReviews(); - 削除
+      // loadMyReservations(); - 削除
       loadUserSettings();
       loadMyFavorites();
       loadMyRoutes();
@@ -191,23 +278,23 @@ export default function MyPage() {
         .limit(1)
         .maybeSingle();
 
-      if (!settings || !settings.rank_settings) return;
+      if (!settings || !(settings as any).rank_settings) return;
 
-      const rankSettings = settings.rank_settings;
+      const rankSettings = (settings as any).rank_settings;
       const currentRank = profile?.rank || 'Bronze';
 
       // 現在の累計値を取得
       const { data: totals } = await supabase.rpc('calculate_total_spent', {
         user_uuid: user!.id
-      });
+      } as any);
 
       const { data: totalLikes } = await supabase.rpc('calculate_total_likes', {
         user_uuid: user!.id
-      });
+      } as any);
 
       const { data: totalPosts } = await supabase.rpc('calculate_total_posts', {
         user_uuid: user!.id
-      });
+      } as any);
 
       // 次のランクを判定
       const rankOrder = ['Bronze', 'Silver', 'Gold', 'Platinum'];
@@ -231,104 +318,8 @@ export default function MyPage() {
     }
   };
 
-  const loadMyStories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('author_id', user!.id)
-        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setMyStories(data || []);
-    } catch (error) {
-      console.error('Error loading stories:', error);
-    } finally {
-      setStoriesLoading(false);
-    }
-  };
 
-  const loadMyReviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('author_id', user!.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (data) {
-        const reviewsWithNames = await Promise.all(
-          data.map(async (review) => {
-            if (review.target_type === 'Partner') {
-              const { data: partner } = await supabase
-                .from('partners')
-                .select('name')
-                .eq('id', review.target_id)
-                .maybeSingle();
-              return { ...review, partner_name: partner?.name };
-            }
-            return review;
-          })
-        );
-        setMyReviews(reviewsWithNames);
-      }
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    } finally {
-      setReviewsLoading(false);
-    }
-  };
-
-  const loadMyReservations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          *,
-          rental_vehicle:rental_vehicles(
-            location,
-            vehicle:vehicles(
-              name,
-              manufacturer,
-              images
-            )
-          )
-        `)
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setMyReservations(data || []);
-
-      if (data && data.length > 0) {
-        const completedReservationIds = data
-          .filter((r) => r.status === 'Completed')
-          .map((r) => r.id);
-
-        if (completedReservationIds.length > 0) {
-          const { data: reviewsData } = await supabase
-            .from('reviews')
-            .select('reservation_id')
-            .in('reservation_id', completedReservationIds)
-            .not('reservation_id', 'is', null);
-
-          const reviewMap: Record<string, boolean> = {};
-          reviewsData?.forEach((review) => {
-            if (review.reservation_id) {
-              reviewMap[review.reservation_id] = true;
-            }
-          });
-          setReservationReviews(reviewMap);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-    } finally {
-      setReservationsLoading(false);
-    }
-  };
 
   const loadMyFavorites = async () => {
     try {
@@ -410,18 +401,19 @@ export default function MyPage() {
 
   const handleToggleReviewPublish = async (reviewId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('reviews')
-        .update({ is_published: !currentStatus })
+      const { error } = await (supabase
+        .from('reviews') as any)
+        .update({ is_published: !currentStatus } as any)
         .eq('id', reviewId);
 
       if (error) throw error;
 
-      setMyReviews((prev) =>
-        prev.map((review) =>
-          review.id === reviewId ? { ...review, is_published: !currentStatus } : review
-        )
-      );
+      // useQueryで自動的に再フェッチされるため、手動更新は不要
+      // setMyReviews((prev) =>
+      //   prev.map((review) =>
+      //     review.id === reviewId ? { ...review, is_published: !currentStatus } : review
+      //   )
+      // );
 
       alert(!currentStatus ? 'レビューを公開しました' : 'レビューを非公開にしました');
     } catch (error) {
@@ -441,7 +433,8 @@ export default function MyPage() {
 
       if (error) throw error;
 
-      setMyReviews((prev) => prev.filter((review) => review.id !== reviewToDelete));
+      // useQueryで自動的に再フェッチされるため、手動更新は不要
+      // setMyReviews((prev: Review[]) => prev.filter((review: Review) => review.id !== reviewToDelete));
       alert('レビューを削除しました');
     } catch (error) {
       console.error('Error deleting review:', error);
@@ -472,9 +465,9 @@ export default function MyPage() {
 
   const toggleRoutePublish = async (routeId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('routes')
-        .update({ is_public: !currentStatus })
+      const { error } = await (supabase
+        .from('routes') as any)
+        .update({ is_public: !currentStatus } as any)
         .eq('id', routeId);
 
       if (error) throw error;
@@ -495,9 +488,7 @@ export default function MyPage() {
   const updateNotificationSetting = async (field: string, value: boolean) => {
     try {
       setSettingsLoading(true);
-      const { error } = await supabase
-        .from('users')
-        .update({ [field]: value })
+      const { error } = await (supabase.from('users') as any).update({ [field]: value })
         .eq('id', user!.id);
 
       if (error) throw error;
@@ -513,9 +504,7 @@ export default function MyPage() {
   const updatePrivacySetting = async (field: string, value: boolean | string) => {
     try {
       setSettingsLoading(true);
-      const { error } = await supabase
-        .from('users')
-        .update({ [field]: value })
+      const { error } = await (supabase.from('users') as any).update({ [field]: value })
         .eq('id', user!.id);
 
       if (error) throw error;
@@ -531,7 +520,7 @@ export default function MyPage() {
   const handleSuspendAccount = async () => {
     try {
       setSettingsLoading(true);
-      const { error } = await supabase.rpc('suspend_account', { reason: suspendReason || null });
+      const { error } = await supabase.rpc('suspend_account', { reason: suspendReason || null } as any);
 
       if (error) throw error;
       alert('アカウントを一時停止しました。再度ログインすると、アカウントを再開できます。');
@@ -562,19 +551,17 @@ export default function MyPage() {
         alert('メールアドレス変更の確認メールを送信しました。メールをご確認ください。');
       }
 
-      const { error } = await supabase
-        .from('users')
-        .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
-          phone_number: editForm.phone,
-          bio: editForm.bio,
-          postal_code: editForm.postal_code,
-          prefecture: editForm.prefecture,
-          city: editForm.city,
-          address_line: editForm.address_line,
-          building: editForm.building,
-        })
+      const { error } = await (supabase.from('users') as any).update({
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        phone_number: editForm.phone,
+        bio: editForm.bio,
+        postal_code: editForm.postal_code,
+        prefecture: editForm.prefecture,
+        city: editForm.city,
+        address_line: editForm.address_line,
+        building: editForm.building,
+      } as any)
         .eq('id', user.id);
 
       if (error) throw error;
@@ -636,11 +623,11 @@ export default function MyPage() {
 
   const tabs = [
     { id: 'profile' as const, label: 'プロフィール', icon: User },
-    { id: 'reservations' as const, label: '予約', icon: Calendar, count: myReservations.length },
+    { id: 'reservations' as const, label: '予約', icon: Calendar, count: myReservations?.length || 0 },
     { id: 'favorites' as const, label: 'お気に入り', icon: Heart, count: totalFavorites },
     { id: 'routes' as const, label: 'マイルート', icon: Route, count: myRoutes.length },
-    { id: 'stories' as const, label: '自分の投稿', icon: BookOpen, count: myStories.length },
-    { id: 'reviews' as const, label: '自分のレビュー', icon: Star, count: myReviews.length },
+    { id: 'stories' as const, label: '自分の投稿', icon: BookOpen, count: myStories?.length || 0 },
+    { id: 'reviews' as const, label: '自分のレビュー', icon: Star, count: myReviews?.length || 0 },
     { id: 'settings' as const, label: '設定', icon: Settings },
   ];
 
@@ -1486,7 +1473,7 @@ export default function MyPage() {
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
-            ) : myReservations.length === 0 ? (
+            ) : (myReservations?.length || 0) === 0 ? (
               <div className="bg-white rounded-xl p-12 text-center shadow">
                 <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 mb-4">予約がありません</p>
@@ -1499,7 +1486,7 @@ export default function MyPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6">
-                {myReservations.map((reservation) => {
+                {(myReservations || []).map((reservation) => {
                   const vehicle = reservation.rental_vehicle?.vehicle;
                   const images = (vehicle?.images as string[]) || [];
                   const statusColors: Record<string, string> = {
@@ -1526,7 +1513,7 @@ export default function MyPage() {
                   };
 
                   return (
-                    <div key={reservation.id} className="bg-white rounded-xl shadow-lg p-6">
+                    <div key={(reservation as any).id} className="bg-white rounded-xl shadow-lg p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -1547,7 +1534,7 @@ export default function MyPage() {
                           <button
                             onClick={() => {
                               setSelectedReservation(reservation);
-                              loadReservationDetails(reservation.id);
+                              loadReservationDetails((reservation as any).id);
                               setShowReservationDetail(true);
                             }}
                             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
@@ -1615,16 +1602,16 @@ export default function MyPage() {
                         </div>
                       </div>
 
-                      {reservation.status === 'Completed' && (
+                      {(reservation as any).status === 'Completed' && (
                         <div className="mt-4 pt-4 border-t">
-                          {reservationReviews[reservation.id] ? (
+                          {reservationReviews[(reservation as any).id] ? (
                             <div className="flex items-center justify-center py-2 text-green-600">
                               <CheckCircle className="h-5 w-5 mr-2" />
                               <span className="font-medium">レビュー投稿済み</span>
                             </div>
                           ) : (
                             <Link
-                              to={`/vehicles/review?reservation=${reservation.id}`}
+                              to={`/vehicles/review?reservation=${(reservation as any).id}`}
                               className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition shadow-md"
                             >
                               <MessageSquare className="h-5 w-5 mr-2" />
@@ -1767,9 +1754,9 @@ export default function MyPage() {
                       <option value="private">非公開</option>
                     </select>
                     <p className="text-sm text-gray-600 mt-1">
-                      {userSettings?.profile_visibility === 'public'
+                      {userSettings?.profile_visibility === 'Public'
                         ? '誰でもプロフィールを閲覧できます'
-                        : userSettings?.profile_visibility === 'friends'
+                        : userSettings?.profile_visibility === 'Friends'
                         ? 'フレンドのみプロフィールを閲覧できます'
                         : 'プロフィールは非公開です'}
                     </p>
@@ -1870,7 +1857,7 @@ export default function MyPage() {
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
-          ) : myStories.length === 0 ? (
+          ) : (myStories?.length || 0) === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-4">まだ投稿がありません</p>
@@ -1884,7 +1871,7 @@ export default function MyPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {myStories.map((story) => (
+              {(myStories || []).map((story) => (
                 <Link
                   key={story.id}
                   to={`/portal/stories/${story.id}`}
@@ -1948,7 +1935,7 @@ export default function MyPage() {
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
-          ) : myReviews.length === 0 ? (
+          ) : (myReviews?.length || 0) === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <Star className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-4">まだレビューがありません</p>
@@ -1961,7 +1948,7 @@ export default function MyPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {myReviews.map((review) => (
+              {(myReviews || []).map((review) => (
                 <div key={review.id} className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -2055,24 +2042,12 @@ export default function MyPage() {
         isOpen={showSuspendModal}
         onClose={() => setShowSuspendModal(false)}
         onConfirm={handleSuspendAccount}
-        title="アカウントの一時停止"
-        message="本当にアカウントを一時停止しますか？いつでも再度ログインして、アカウントを再開できます。"
-        confirmText="一時停止"
+        title="アカウント停止の確認"
+        message="本当にアカウントを停止しますか？この操作は取り消せません。"
+        confirmText="停止する"
         cancelText="キャンセル"
-      >
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            理由（任意）
-          </label>
-          <textarea
-            value={suspendReason}
-            onChange={(e) => setSuspendReason(e.target.value)}
-            placeholder="一時停止の理由を入力してください（任意）"
-            rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </ConfirmModal>
+        type="danger"
+      />
 
       <ConfirmModal
         isOpen={showDeleteRouteModal}

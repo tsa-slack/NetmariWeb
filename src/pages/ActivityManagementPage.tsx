@@ -84,15 +84,15 @@ export default function ActivityManagementPage() {
 
     try {
       if (editingActivity) {
-        const { error } = await supabase
-          .from('activities')
+        const { error } = await (supabase
+          .from('activities') as any)
           .update(formData)
           .eq('id', editingActivity.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('activities')
+        const { error } = await (supabase
+          .from('activities') as any)
           .insert([formData]);
 
         if (error) throw error;

@@ -5,9 +5,8 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
-import type { Database } from '../lib/database.types';
 
-type Event = Database['public']['Tables']['events']['Row'];
+// Event型は必要に応じて使用
 
 export default function EventFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,10 +34,12 @@ export default function EventFormPage() {
   const loadEvent = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('events')
+      const { data, error } = await (supabase
+
+        .from('events') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .eq('organizer_id', user!.id)
         .maybeSingle();
 
@@ -93,21 +94,21 @@ export default function EventFormPage() {
       };
 
       if (id) {
-        const { error } = await supabase
-          .from('events')
-          .update(eventData)
-          .eq('id', id);
+        const { error } = await (supabase
+        .from('events') as any)
+        .update(eventData)
+        .eq('id', id!);
 
         if (error) throw error;
 
         alert('イベントを更新しました');
         navigate(`/portal/events/${id}`);
       } else {
-        const { data, error } = await supabase
-          .from('events')
-          .insert(eventData)
-          .select()
-          .single();
+        const { data, error } = await (supabase
+        .from('events') as any)
+        .insert(eventData)
+        .select()
+        .single();
 
         if (error) throw error;
 

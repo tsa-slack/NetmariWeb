@@ -25,10 +25,12 @@ export default function QuestionFormPage() {
   const loadQuestion = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('questions')
+      const { data, error } = await (supabase
+
+        .from('questions') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .eq('author_id', user!.id)
         .maybeSingle();
 
@@ -71,18 +73,22 @@ export default function QuestionFormPage() {
       };
 
       if (id) {
-        const { error } = await supabase
-          .from('questions')
+        const { error } = await (supabase
+
+          .from('questions') as any)
+
           .update(questionData)
-          .eq('id', id);
+          .eq('id', id!);
 
         if (error) throw error;
 
         alert('質問を更新しました');
         navigate(`/portal/questions/${id}`);
       } else {
-        const { data, error } = await supabase
-          .from('questions')
+        const { data, error } = await (supabase
+
+          .from('questions') as any)
+
           .insert(questionData)
           .select()
           .single();

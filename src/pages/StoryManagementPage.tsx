@@ -93,8 +93,12 @@ export default function StoryManagementPage() {
         updates.published_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('stories')
+      const { error } = await (supabase
+
+
+        .from('stories') as any)
+
+
         .update(updates)
         .eq('id', storyId);
 

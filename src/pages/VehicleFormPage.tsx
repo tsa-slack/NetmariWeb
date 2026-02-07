@@ -50,13 +50,15 @@ export default function VehicleFormPage() {
 
     setLoadingData(true);
     try {
-      const { data: rentalData, error: rentalError } = await supabase
-        .from('rental_vehicles')
+      const { data: rentalData, error: rentalError } = await (supabase
+
+        .from('rental_vehicles') as any)
+
         .select(`
           *,
           vehicle:vehicles(*)
         `)
-        .eq('id', id)
+        .eq('id', id!)
         .single();
 
       if (rentalError) throw rentalError;
@@ -94,15 +96,19 @@ export default function VehicleFormPage() {
 
     try {
       if (isEditing) {
-        const { data: rentalVehicle } = await supabase
-          .from('rental_vehicles')
+        const { data: rentalVehicle } = await (supabase
+
+          .from('rental_vehicles') as any)
+
           .select('vehicle_id')
-          .eq('id', id)
+          .eq('id', id!)
           .single();
 
         if (rentalVehicle) {
-          const { error: vehicleError } = await supabase
-            .from('vehicles')
+          const { error: vehicleError } = await (supabase
+
+            .from('vehicles') as any)
+
             .update({
               make: formData.make,
               model: formData.model,
@@ -115,22 +121,28 @@ export default function VehicleFormPage() {
 
           if (vehicleError) throw vehicleError;
 
-          const { error: rentalError } = await supabase
-            .from('rental_vehicles')
+          const { error: rentalError } = await (supabase
+
+
+            .from('rental_vehicles') as any)
+
+
             .update({
               location: formData.location,
               price_per_day: formData.price_per_day,
               status: formData.status,
             })
-            .eq('id', id);
+            .eq('id', id!);
 
           if (rentalError) throw rentalError;
         }
 
         alert('車両を更新しました');
       } else {
-        const { data: vehicleData, error: vehicleError } = await supabase
-          .from('vehicles')
+        const { data: vehicleData, error: vehicleError } = await (supabase
+
+          .from('vehicles') as any)
+
           .insert({
             name: `${formData.make} ${formData.model}`,
             make: formData.make,
@@ -146,8 +158,12 @@ export default function VehicleFormPage() {
 
         if (vehicleError) throw vehicleError;
 
-        const { error: rentalError } = await supabase
-          .from('rental_vehicles')
+        const { error: rentalError } = await (supabase
+
+
+          .from('rental_vehicles') as any)
+
+
           .insert({
             vehicle_id: vehicleData.id,
             location: formData.location,

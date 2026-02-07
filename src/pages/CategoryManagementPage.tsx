@@ -86,17 +86,17 @@ export default function CategoryManagementPage() {
 
     try {
       if (editingCategory) {
-        const { error } = await supabase
-          .from('categories')
-          .update(formData)
+        const { error } = await (supabase
+          .from('categories') as any)
+          .update(formData as any)
           .eq('id', editingCategory.id);
 
         if (error) throw error;
         alert('カテゴリーを更新しました');
       } else {
-        const { error } = await supabase
-          .from('categories')
-          .insert(formData);
+        const { error } = await (supabase
+          .from('categories') as any)
+          .insert(formData as any);
 
         if (error) throw error;
         alert('カテゴリーを登録しました');
@@ -449,10 +449,10 @@ export default function CategoryManagementPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getTypeColor(
-                          category.type
+                          category.type || ''
                         )}`}
                       >
-                        {getTypeLabel(category.type)}
+                        {getTypeLabel(category.type || '')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

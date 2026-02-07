@@ -76,8 +76,10 @@ export default function EquipmentManagementPage() {
 
   const togglePublish = async (equipmentId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('equipment')
+      const { error } = await (supabase
+
+        .from('equipment') as any)
+
         .update({ is_published: !currentStatus })
         .eq('id', equipmentId);
 

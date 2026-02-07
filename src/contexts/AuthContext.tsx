@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 
 type UserRole = 'Admin' | 'Staff' | 'Partners' | 'Members';
-type UserRank = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+
 
 type UserProfile = Database['public']['Tables']['users']['Row'];
 

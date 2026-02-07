@@ -34,7 +34,7 @@ type Reservation = Database['public']['Tables']['reservations']['Row'] & {
 };
 
 export default function PartnerDashboardPage() {
-  const { user, profile, loading, isPartner } = useAuth();
+  const { user, loading, isPartner } = useAuth();
   const [partner, setPartner] = useState<Partner | null>(null);
   const [stats, setStats] = useState({
     totalReviews: 0,
@@ -58,8 +58,10 @@ export default function PartnerDashboardPage() {
     if (!user) return;
 
     try {
-      const { data: partnerData, error: partnerError } = await supabase
-        .from('partners')
+      const { data: partnerData, error: partnerError } = await (supabase
+
+        .from('partners') as any)
+
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -88,18 +90,18 @@ export default function PartnerDashboardPage() {
           .from('reviews')
           .select('rating')
           .eq('target_type', 'Partner')
-          .eq('target_id', partnerId),
+          .eq('target_id', partnerId!),
         supabase
           .from('partner_favorites')
           .select('id', { count: 'exact', head: true })
-          .eq('partner_id', partnerId),
+          .eq('partner_id', partnerId!),
       ]);
 
       const reviews = reviewsRes.data || [];
       const totalReviews = reviews.length;
       const averageRating =
         totalReviews > 0
-          ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+          ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews
           : 0;
 
       setStats({
@@ -115,11 +117,13 @@ export default function PartnerDashboardPage() {
 
   const loadRecentReviews = async (partnerId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('reviews')
+      const { data, error } = await (supabase
+
+        .from('reviews') as any)
+
         .select('*')
         .eq('target_type', 'Partner')
-        .eq('target_id', partnerId)
+        .eq('target_id', partnerId!)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -132,8 +136,10 @@ export default function PartnerDashboardPage() {
 
   const loadActivities = async () => {
     try {
-      const { data, error } = await supabase
-        .from('activities')
+      const { data, error } = await (supabase
+
+        .from('activities') as any)
+
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -146,8 +152,10 @@ export default function PartnerDashboardPage() {
 
   const loadEquipment = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipment')
+      const { data, error } = await (supabase
+
+        .from('equipment') as any)
+
         .select('*')
         .order('name', { ascending: true });
 
@@ -160,8 +168,10 @@ export default function PartnerDashboardPage() {
 
   const loadReservations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('reservations')
+      const { data, error } = await (supabase
+
+        .from('reservations') as any)
+
         .select(`
           *,
           users:user_id (

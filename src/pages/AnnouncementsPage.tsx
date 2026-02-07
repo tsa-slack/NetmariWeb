@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { Bell, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import type { Database } from '../lib/database.types';
+import { AnnouncementRepository, useQuery, useRepository } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
+import type { Row } from '../lib/data-access/base/types';
 
-type Announcement = Database['public']['Tables']['announcements']['Row'] & {
+type Announcement = Row<'announcements'> & {
   author?: {
     first_name: string;
     last_name: string;
@@ -15,39 +16,65 @@ type Announcement = Database['public']['Tables']['announcements']['Row'] & {
 
 export default function AnnouncementsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
 
-  useEffect(() => {
-    loadAnnouncements();
-  }, [filter]);
+  // リポジトリインスタンスを作成
+  const announcementRepo = useRepository(AnnouncementRepository);
 
-  const loadAnnouncements = async () => {
-    try {
-      let query = supabase
-        .from('announcements')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .eq('published', true)
-        .order('published_at', { ascending: false });
+  // お知らせ一覧を取得
+  const { data: announcementsData, loading, error, refetch } = useQuery<Announcement[]>(
+    async () => {
+      // 基本的なお知らせ取得
+      const result = await announcementRepo.findAll({
+        orderBy: { column: 'published_at', ascending: false },
+      });
 
-      if (filter !== 'all') {
-        query = query.eq('priority', filter);
+      if (!result.success) {
+        return result;
       }
 
-      const { data, error } = await query;
+      // 公開済みのみフィルタ & 著者情報を取得
+      const publishedAnnouncements = await Promise.all(
+        result.data
+          .filter(announcement => announcement.published)
+          .map(async (announcement) => {
+            // 著者情報を取得
+            let author = undefined;
+            if (announcement.author_id) {
+              const { data } = await supabase
+                .from('users')
+                .select('first_name, last_name')
+                .eq('id', announcement.author_id)
+                .maybeSingle();
+              author = data || undefined;
+            }
 
-      if (error) throw error;
-      setAnnouncements(data || []);
-    } catch (error) {
-      console.error('Error loading announcements:', error);
-    } finally {
-      setLoading(false);
+            return {
+              ...announcement,
+              author,
+            } as Announcement;
+          })
+      );
+
+      return { success: true, data: publishedAnnouncements } as const;
+    },
+    {
+      onError: (err: Error) => {
+        console.error('Error loading announcements:', err);
+      },
     }
-  };
+  );
+
+  // フィルタリングされたお知らせ
+  const filteredAnnouncements = useMemo(() => {
+    if (!announcementsData) return [];
+    
+    if (filter === 'all') {
+      return announcementsData;
+    }
+    
+    return announcementsData.filter(announcement => announcement.priority === filter);
+  }, [announcementsData, filter]);
 
   if (authLoading) {
     return (
@@ -63,14 +90,33 @@ export default function AnnouncementsPage() {
     return <Navigate to="/login" replace />;
   }
 
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'Urgent':
-        return <AlertCircle className="h-5 w-5" />;
       case 'High':
-        return <AlertTriangle className="h-5 w-5" />;
-      case 'Normal':
+        return <AlertCircle className="h-5 w-5" />;
+      case 'Medium':
         return <Info className="h-5 w-5" />;
+      case 'Low':
+        return <AlertTriangle className="h-5 w-5" />;
       default:
         return <Bell className="h-5 w-5" />;
     }
@@ -78,11 +124,11 @@ export default function AnnouncementsPage() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'Urgent':
-        return 'bg-red-100 text-red-700 border-red-300';
       case 'High':
+        return 'bg-red-100 text-red-700 border-red-300';
+      case 'Medium':
         return 'bg-orange-100 text-orange-700 border-orange-300';
-      case 'Normal':
+      case 'Low':
         return 'bg-blue-100 text-blue-700 border-blue-300';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-300';
@@ -109,34 +155,34 @@ export default function AnnouncementsPage() {
             すべて
           </button>
           <button
-            onClick={() => setFilter('Urgent')}
-            className={`px-6 py-2 rounded-lg transition ${
-              filter === 'Urgent'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            緊急
-          </button>
-          <button
             onClick={() => setFilter('High')}
             className={`px-6 py-2 rounded-lg transition ${
               filter === 'High'
-                ? 'bg-orange-600 text-white'
+                ? 'bg-red-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             重要
           </button>
           <button
-            onClick={() => setFilter('Normal')}
+            onClick={() => setFilter('Medium')}
             className={`px-6 py-2 rounded-lg transition ${
-              filter === 'Normal'
-                ? 'bg-blue-600 text-white'
+              filter === 'Medium'
+                ? 'bg-orange-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             通常
+          </button>
+          <button
+            onClick={() => setFilter('Low')}
+            className={`px-6 py-2 rounded-lg transition ${
+              filter === 'Low'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            情報
           </button>
         </div>
 
@@ -144,34 +190,34 @@ export default function AnnouncementsPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : announcements.length === 0 ? (
+        ) : filteredAnnouncements.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">お知らせはありません</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {announcements.map((announcement) => (
+            {filteredAnnouncements.map((announcement: Announcement) => (
               <div
                 key={announcement.id}
                 className={`bg-white rounded-xl shadow-lg p-6 border-l-4 ${getPriorityColor(
-                  announcement.priority || 'Normal'
+                  announcement.priority || 'Medium'
                 )}`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <div
                       className={`p-2 rounded-lg ${
-                        announcement.priority === 'Urgent'
+                        announcement.priority === 'High'
                           ? 'bg-red-100 text-red-700'
-                          : announcement.priority === 'High'
+                          : announcement.priority === 'Medium'
                           ? 'bg-orange-100 text-orange-700'
-                          : announcement.priority === 'Normal'
+                          : announcement.priority === 'Low'
                           ? 'bg-blue-100 text-blue-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}
                     >
-                      {getPriorityIcon(announcement.priority || 'Normal')}
+                      {getPriorityIcon(announcement.priority || 'Medium')}
                     </div>
                     <div>
                       <h3 className="text-2xl font-semibold text-gray-800">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
@@ -6,6 +6,12 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { Calendar, MapPin, Users, Clock, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import type { Database } from '../lib/database.types';
+import {
+  EventRepository,
+  EventParticipantRepository,
+  useQuery,
+  useRepository,
+} from '../lib/data-access';
 
 type Event = Database['public']['Tables']['events']['Row'] & {
   organizer?: {
@@ -28,77 +34,31 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [event, setEvent] = useState<Event | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isParticipating, setIsParticipating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  useEffect(() => {
-    if (id && user) {
-      loadEvent();
-      loadParticipants();
-      checkParticipation();
-    }
-  }, [id, user]);
+  // リポジトリインスタンスを作成
+  const eventRepo = useRepository(EventRepository);
+  const participantRepo = new EventParticipantRepository();
 
-  const loadEvent = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select(`
-          *,
-          organizer:users(first_name, last_name)
-        `)
-        .eq('id', id)
-        .maybeSingle();
+  // イベント詳細を取得
+  const { data: event, loading, refetch: refetchEvent } = useQuery<any>(
+    async () => eventRepo.findByIdWithOrganizer(id!),
+    { enabled: !!id }
+  );
 
-      if (error) throw error;
-      setEvent(data);
-    } catch (error) {
-      console.error('Error loading event:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 参加者一覧を取得
+  const { data: participants, refetch: refetchParticipants } = useQuery<any[]>(
+    async () => participantRepo.findByEventWithUser(id!),
+    { enabled: !!id }
+  );
 
-  const loadParticipants = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('event_participants')
-        .select(`
-          id,
-          status,
-          created_at,
-          user:users(first_name, last_name)
-        `)
-        .eq('event_id', id)
-        .eq('status', 'Registered')
-        .order('created_at', { ascending: false });
+  // 参加状況を確認
+  const { data: isParticipating } = useQuery<boolean>(
+    async () => participantRepo.checkParticipation(id!, user!.id),
+    { enabled: !!(id && user) }
+  );
 
-      if (error) throw error;
-      setParticipants(data || []);
-    } catch (error) {
-      console.error('Error loading participants:', error);
-    }
-  };
-
-  const checkParticipation = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('event_participants')
-        .select('id')
-        .eq('event_id', id)
-        .eq('user_id', user!.id)
-        .eq('status', 'Registered')
-        .maybeSingle();
-
-      if (error) throw error;
-      setIsParticipating(!!data);
-    } catch (error) {
-      console.error('Error checking participation:', error);
-    }
-  };
+  // ミューテーション関数（直接Supabase呼び出しを維持）
 
   const handleRegister = async () => {
     if (!user) {
@@ -107,8 +67,10 @@ export default function EventDetailPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('event_participants')
+      const { error } = await (supabase
+
+        .from('event_participants') as any)
+
         .insert({
           event_id: id,
           user_id: user.id,
@@ -131,7 +93,7 @@ export default function EventDetailPage() {
       const { error } = await supabase
         .from('event_participants')
         .delete()
-        .eq('event_id', id)
+        .eq('event_id', id!)
         .eq('user_id', user!.id);
 
       if (error) throw error;
@@ -150,7 +112,7 @@ export default function EventDetailPage() {
       const { error } = await supabase
         .from('events')
         .delete()
-        .eq('id', id);
+        .eq('id', id!);
 
       if (error) throw error;
 
@@ -264,7 +226,7 @@ export default function EventDetailPage() {
                   ) : (
                     <button
                       onClick={handleRegister}
-                      disabled={isFull}
+                      disabled={Boolean(isFull)}
                       className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <UserPlus className="h-5 w-5 mr-2" />

@@ -50,10 +50,12 @@ export default function SaleVehicleFormPage() {
 
     setLoadingData(true);
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
+      const { data, error } = await (supabase
+
+        .from('vehicles') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .single();
 
       if (error) throw error;
@@ -103,16 +105,20 @@ export default function SaleVehicleFormPage() {
       };
 
       if (isEditing) {
-        const { error } = await supabase
-          .from('vehicles')
+        const { error } = await (supabase
+
+          .from('vehicles') as any)
+
           .update(vehicleData)
-          .eq('id', id);
+          .eq('id', id!);
 
         if (error) throw error;
         alert('車両を更新しました');
       } else {
-        const { error } = await supabase
-          .from('vehicles')
+        const { error } = await (supabase
+
+          .from('vehicles') as any)
+
           .insert(vehicleData);
 
         if (error) throw error;

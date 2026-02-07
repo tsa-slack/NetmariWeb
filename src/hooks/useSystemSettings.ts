@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { SystemSettingsRepository, useQuery } from '../lib/data-access';
 
 interface SystemSettings {
   rental_enabled: boolean;
@@ -8,16 +9,39 @@ interface SystemSettings {
 }
 
 export function useSystemSettings() {
+  const settingsRepo = new SystemSettingsRepository();
+
+  // SystemSettingsRepositoryを使用してすべての設定を取得
+  const { data: settingsData, loading, refetch } = useQuery<Record<string, string>>(
+    async () => settingsRepo.findAll(),
+    { enabled: true }
+  );
+
+  // 設定データをboolean型に変換
   const [settings, setSettings] = useState<SystemSettings>({
     rental_enabled: true,
     partner_registration_enabled: true,
     user_registration_enabled: true,
   });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSettings();
+    if (settingsData) {
+      const settingsMap: Partial<SystemSettings> = {};
+      Object.entries(settingsData).forEach(([key, value]) => {
+        if (key in settings) {
+          settingsMap[key as keyof SystemSettings] = value === 'true';
+        }
+      });
 
+      setSettings((prev) => ({
+        ...prev,
+        ...settingsMap,
+      }));
+    }
+  }, [settingsData]);
+
+  // リアルタイム更新のサブスクリプション
+  useEffect(() => {
     const subscription = supabase
       .channel('system_settings_changes')
       .on(
@@ -28,7 +52,7 @@ export function useSystemSettings() {
           table: 'system_settings',
         },
         () => {
-          loadSettings();
+          refetch(); // useQueryのrefetchを使用
         }
       )
       .subscribe();
@@ -36,34 +60,7 @@ export function useSystemSettings() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('key, value');
-
-      if (error) throw error;
-
-      if (data) {
-        const settingsMap: Partial<SystemSettings> = {};
-        data.forEach((setting) => {
-          const key = setting.key as keyof SystemSettings;
-          settingsMap[key] = setting.value === 'true';
-        });
-
-        setSettings((prev) => ({
-          ...prev,
-          ...settingsMap,
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading system settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [refetch]);
 
   return { settings, loading };
 }

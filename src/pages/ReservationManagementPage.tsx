@@ -73,8 +73,10 @@ export default function ReservationManagementPage() {
 
   const loadReservations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('reservations')
+      const { data, error } = await (supabase
+
+        .from('reservations') as any)
+
         .select(`
           *,
           user:users(email, first_name, last_name),
@@ -114,8 +116,10 @@ export default function ReservationManagementPage() {
     if (!updateStatusModal) return;
 
     try {
-      const { error } = await supabase
-        .from('reservations')
+      const { error } = await (supabase
+
+        .from('reservations') as any)
+
         .update({ status: newStatus })
         .eq('id', updateStatusModal.id);
 
@@ -439,26 +443,7 @@ export default function ReservationManagementPage() {
         }}
         onConfirm={handleUpdateStatus}
         title="予約ステータスを変更"
-        message={
-          <div className="space-y-4">
-            <p>予約のステータスを変更してもよろしいですか?</p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                新しいステータス
-              </label>
-              <select
-                value={newStatus}
-                onChange={(e) => setNewStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Pending">保留中</option>
-                <option value="Confirmed">確定</option>
-                <option value="Completed">完了</option>
-                <option value="Cancelled">キャンセル</option>
-              </select>
-            </div>
-          </div>
-        }
+        message="このキャンセルを承認してもよろしいですか？"
       />
     </AdminLayout>
   );

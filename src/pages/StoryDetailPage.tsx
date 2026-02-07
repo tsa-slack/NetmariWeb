@@ -18,7 +18,7 @@ type StoryQuestion = Database['public']['Tables']['story_questions']['Row'] & {
 export default function StoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
   const [author, setAuthor] = useState<{ first_name: string; last_name: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,8 +40,10 @@ export default function StoryDetailPage() {
 
   const loadStory = async () => {
     try {
-      const { data, error } = await supabase
-        .from('stories')
+      const { data, error } = await (supabase
+
+        .from('stories') as any)
+
         .select(`
           *,
           users!stories_author_id_fkey (first_name, last_name)
@@ -66,8 +68,10 @@ export default function StoryDetailPage() {
 
   const loadQuestions = async () => {
     try {
-      const { data, error } = await supabase
-        .from('story_questions')
+      const { data, error } = await (supabase
+
+        .from('story_questions') as any)
+
         .select(`
           *,
           users!story_questions_user_id_fkey (first_name, last_name),
@@ -90,8 +94,10 @@ export default function StoryDetailPage() {
     if (!user) return;
 
     try {
-      const { data } = await supabase
-        .from('story_likes')
+      const { data } = await (supabase
+
+        .from('story_likes') as any)
+
         .select('id')
         .eq('story_id', id!)
         .eq('user_id', user.id)
@@ -116,7 +122,7 @@ export default function StoryDetailPage() {
     }
 
     try {
-      await supabase.rpc('increment_story_views', { story_id: id });
+      await (supabase as any).rpc('increment_story_views', { story_id: id });
       localStorage.setItem(viewedKey, now.toString());
     } catch (error) {
       console.error('Error incrementing views:', error);
@@ -131,14 +137,16 @@ export default function StoryDetailPage() {
         await supabase
           .from('story_likes')
           .delete()
-          .eq('story_id', story.id)
+          .eq('story_id', story.id!)
           .eq('user_id', user.id);
 
         setStory({ ...story, likes: story.likes - 1 });
         setLiked(false);
       } else {
-        await supabase
-          .from('story_likes')
+        await (supabase
+
+          .from('story_likes') as any)
+
           .insert({ story_id: story.id, user_id: user.id });
 
         setStory({ ...story, likes: story.likes + 1 });
@@ -155,8 +163,10 @@ export default function StoryDetailPage() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('story_questions')
+      const { error } = await (supabase
+
+        .from('story_questions') as any)
+
         .insert({
           story_id: id!,
           user_id: user.id,
@@ -179,8 +189,10 @@ export default function StoryDetailPage() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('story_answers')
+      const { error } = await (supabase
+
+        .from('story_answers') as any)
+
         .insert({
           question_id: questionId,
           user_id: user.id,

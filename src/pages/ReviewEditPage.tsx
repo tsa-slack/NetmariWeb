@@ -31,10 +31,12 @@ export default function ReviewEditPage() {
 
   const loadReview = async () => {
     try {
-      const { data, error } = await supabase
-        .from('reviews')
+      const { data, error } = await (supabase
+
+        .from('reviews') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .eq('author_id', user!.id)
         .maybeSingle();
 
@@ -74,31 +76,41 @@ export default function ReviewEditPage() {
       setSubmitting(true);
       setShowConfirmModal(false);
 
-      const { error } = await supabase
-        .from('reviews')
+      const { error } = await (supabase
+
+
+        .from('reviews') as any)
+
+
         .update({
           rating,
           title: title.trim() || null,
           content: content.trim(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', id);
+        .eq('id', id!);
 
       if (error) throw error;
 
-      const { data: reviews } = await supabase
-        .from('reviews')
+      const { data: reviews } = await (supabase
+
+
+        .from('reviews') as any)
+
+
         .select('rating')
         .eq('target_type', review!.target_type)
         .eq('target_id', review!.target_id)
         .eq('is_published', true);
 
       if (reviews) {
-        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+        const avgRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length;
 
         if (review!.target_type === 'Partner') {
-          await supabase
-            .from('partners')
+          await (supabase
+
+            .from('partners') as any)
+
             .update({
               rating: avgRating,
               review_count: reviews.length,

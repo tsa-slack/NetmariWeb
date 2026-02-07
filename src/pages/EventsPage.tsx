@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { Calendar, MapPin, Users, Plus, Clock } from 'lucide-react';
-import type { Database } from '../lib/database.types';
+import { EventRepository, useQuery, useRepository } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
+import type { Row } from '../lib/data-access/base/types';
 
-type Event = Database['public']['Tables']['events']['Row'] & {
+type Event = Row<'events'> & {
   organizer?: {
     first_name: string;
     last_name: string;
@@ -16,54 +17,71 @@ type Event = Database['public']['Tables']['events']['Row'] & {
 
 export default function EventsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  
+  // リポジトリインスタンスを作成
+  const eventRepo = useRepository(EventRepository);
 
-  useEffect(() => {
-    loadEvents();
-  }, [filter]);
+  // イベント一覧を取得
+  const { data: eventsData, loading, error, refetch } = useQuery<Event[]>(
+    async () => {
+      // 基本的なイベント取得
+      const result = await eventRepo.findAll({
+        orderBy: { column: 'event_date', ascending: true },
+      });
 
-  const loadEvents = async () => {
-    try {
-      let query = supabase
-        .from('events')
-        .select(`
-          *,
-          organizer:users(first_name, last_name)
-        `)
-        .order('event_date', { ascending: true });
-
-      if (filter === 'upcoming') {
-        query = query.gte('event_date', new Date().toISOString());
-      } else if (filter === 'past') {
-        query = query.lt('event_date', new Date().toISOString());
+      if (!result.success) {
+        return result; // エラーをそのまま返す
       }
 
-      const { data, error } = await query;
+      // 主催者情報と参加者数を含むイベントを取得
+      const eventsWithDetails = await Promise.all(
+        result.data.map(async (event) => {
+          // 主催者情報を取得
+          const { data: organizer } = await supabase
+            .from('users')
+            .select('first_name, last_name')
+            .eq('id', event.organizer_id)
+            .maybeSingle();
 
-      if (error) throw error;
+          // 参加者数を取得
+          const { count } = await supabase
+            .from('event_participants')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'Registered');
 
-      if (data) {
-        const eventsWithCounts = await Promise.all(
-          data.map(async (event) => {
-            const { count } = await supabase
-              .from('event_participants')
-              .select('*', { count: 'exact', head: true })
-              .eq('event_id', event.id)
-              .eq('status', 'Registered');
+          return {
+            ...event,
+            organizer: organizer || undefined,
+            participant_count: count || 0,
+          } as Event;
+        })
+      );
 
-            return { ...event, participant_count: count || 0 };
-          })
-        );
-        setEvents(eventsWithCounts);
-      }
-    } catch (error) {
-      console.error('Error loading events:', error);
-    } finally {
-      setLoading(false);
+      return { success: true, data: eventsWithDetails } as const;
+    },
+    {
+      onError: (err: Error) => {
+        console.error('Error loading events:', err);
+      },
     }
-  };
+  );
+
+  // フィルタリングされたイベント
+  const filteredEvents = useMemo(() => {
+    if (!eventsData) return [];
+
+    const now = new Date().toISOString();
+    
+    if (filter === 'upcoming') {
+      return eventsData.filter((event: Event) => event.event_date >= now);
+    } else if (filter === 'past') {
+      return eventsData.filter((event: Event) => event.event_date < now);
+    }
+    
+    return eventsData;
+  }, [eventsData, filter]);
 
   if (authLoading) {
     return (
@@ -77,6 +95,25 @@ export default function EventsPage() {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (
@@ -133,7 +170,7 @@ export default function EventsPage() {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : events.length === 0 ? (
+        ) : filteredEvents.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">イベントがありません</p>
@@ -147,7 +184,7 @@ export default function EventsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
+            {filteredEvents.map((event: Event) => (
               <Link
                 key={event.id}
                 to={`/portal/events/${event.id}`}

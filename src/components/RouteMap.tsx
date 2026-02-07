@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -11,8 +10,6 @@ L.Icon.Default.mergeOptions({
 });
 
 interface RouteMapProps {
-  origin: string;
-  destination: string;
   stops: Array<{
     name: string;
     address: string;
@@ -48,55 +45,7 @@ const createNumberIcon = (number: number, color: string = '#3b82f6') => {
   });
 };
 
-const startIcon = L.divIcon({
-  className: 'custom-marker',
-  html: `
-    <div style="
-      background-color: #10b981;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 18px;
-    ">
-      🚗
-    </div>
-  `,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-});
-
-const endIcon = L.divIcon({
-  className: 'custom-marker',
-  html: `
-    <div style="
-      background-color: #ef4444;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 18px;
-    ">
-      🏁
-    </div>
-  `,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-});
-
-export default function RouteMap({ origin, destination, stops }: RouteMapProps) {
+export default function RouteMap({ stops }: RouteMapProps) {
   const defaultCenter: [number, number] = [36.2048, 138.2529];
   const defaultZoom = 6;
 

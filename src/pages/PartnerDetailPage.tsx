@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { MapPin, Star, Clock, Phone, Mail, Globe, Heart, Edit, Trash2, ImageIcon } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import ConfirmModal from '../components/ConfirmModal';
+import { PartnerRepository, ReviewRepository, useQuery, useRepository } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -18,73 +19,51 @@ type Review = Database['public']['Tables']['reviews']['Row'] & {
 export default function PartnerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user, profile } = useAuth();
-  const [partner, setPartner] = useState<Partner | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // リポジトリインスタンスを作成
+  const partnerRepo = useRepository(PartnerRepository);
+  const reviewRepo = useRepository(ReviewRepository);
 
-  useEffect(() => {
-    if (id) {
-      loadPartner();
-      loadReviews();
-      if (user) {
-        checkFavoriteStatus();
+  // パートナー情報を取得
+  const { data: partner, loading, error } = useQuery<Partner | null>(
+    async () => partnerRepo.findById(id!),
+    { enabled: !!id }
+  );
+
+  // レビューを取得
+  const { data: reviews } = useQuery<Review[]>(
+    async () => reviewRepo.findByTargetWithAuthor('Partner', id!),
+    { enabled: !!id }
+  );
+
+  // お気に入り状態を取得
+  const { data: favoriteResult } = useQuery<boolean>(
+    async () => {
+      if (!user) return { success: true, data: false } as const;
+      
+      try {
+        const { data, error } = await (supabase
+          .from('partner_favorites') as any)
+          .select('id')
+          .eq('partner_id', id!)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (error) throw error;
+        return { success: true, data: !!data } as const;
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to check favorite status')
+        } as const;
       }
-    }
-  }, [id, user]);
+    },
+    { enabled: !!(id && user) }
+  );
 
-  const loadPartner = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('partners')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+  const isFavorite = useMemo(() => favoriteResult || false, [favoriteResult]);
 
-      if (error) throw error;
-      setPartner(data);
-    } catch (error) {
-      console.error('Error loading partner:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadReviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          author:users(first_name, last_name)
-        `)
-        .eq('target_type', 'Partner')
-        .eq('target_id', id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setReviews(data || []);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    }
-  };
-
-  const checkFavoriteStatus = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('partner_favorites')
-        .select('id')
-        .eq('partner_id', id)
-        .eq('user_id', user!.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setIsFavorite(!!data);
-    } catch (error) {
-      console.error('Error checking favorite status:', error);
-    }
-  };
 
   const toggleFavorite = async () => {
     if (!user) {
@@ -97,21 +76,22 @@ export default function PartnerDetailPage() {
         const { error } = await supabase
           .from('partner_favorites')
           .delete()
-          .eq('partner_id', id)
+          .eq('partner_id', id!)
           .eq('user_id', user.id);
 
         if (error) throw error;
-        setIsFavorite(false);
+        // 再フェッチはuseQueryが自動で行う
+        window.location.reload(); // 簡易的な再読み込み
       } else {
-        const { error } = await supabase
-          .from('partner_favorites')
+        const { error } = await (supabase
+          .from('partner_favorites') as any)
           .insert({
             partner_id: id,
             user_id: user.id,
           });
 
         if (error) throw error;
-        setIsFavorite(true);
+        window.location.reload(); // 簡易的な再読み込み
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -119,12 +99,13 @@ export default function PartnerDetailPage() {
     }
   };
 
+
   const handleDelete = async () => {
     try {
       const { error } = await supabase
         .from('partners')
         .delete()
-        .eq('id', id);
+        .eq('id', id!);
 
       if (error) throw error;
       alert('協力店を削除しました');
@@ -134,6 +115,25 @@ export default function PartnerDetailPage() {
       alert('協力店の削除に失敗しました');
     }
   };
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
+            <p className="text-red-700 mb-4">{error.message}</p>
+            <Link
+              to="/partners"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition inline-block"
+            >
+              協力店一覧に戻る
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (
@@ -366,13 +366,13 @@ export default function PartnerDetailPage() {
                 )}
               </div>
 
-              {reviews.length === 0 ? (
+              {(reviews?.length || 0) === 0 ? (
                 <p className="text-gray-600 text-center py-8">
                   まだレビューがありません。最初のレビューを書いてみませんか？
                 </p>
               ) : (
                 <div className="space-y-6">
-                  {reviews.map((review) => (
+                  {(reviews || []).map((review) => (
                     <div key={review.id} className="border-b pb-6 last:border-b-0">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">

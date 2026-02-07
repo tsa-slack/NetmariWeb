@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function StaffPage() {
-  const { user, profile, loading, isAdmin, isStaff } = useAuth();
+  const { user, loading, isAdmin, isStaff } = useAuth();
   const [stats, setStats] = useState({
     pendingStories: 0,
     pendingReviews: 0,
@@ -79,7 +79,7 @@ export default function StaffPage() {
 
       setRecentItems(
         (stories || []).map((story) => ({
-          ...story,
+          ...(story as any),
           type: 'story',
         }))
       );

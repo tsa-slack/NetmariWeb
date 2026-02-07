@@ -85,8 +85,10 @@ export default function StaffCheckoutPage() {
     if (!id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('reservations')
+      const { data, error } = await (supabase
+
+        .from('reservations') as any)
+
         .select(`
           *,
           user:users!reservations_user_id_fkey(first_name, last_name, email, phone_number),
@@ -96,7 +98,7 @@ export default function StaffCheckoutPage() {
             vehicle:vehicles(name, manufacturer, type)
           )
         `)
-        .eq('id', id)
+        .eq('id', id!)
         .maybeSingle();
 
       if (error) throw error;
@@ -108,14 +110,18 @@ export default function StaffCheckoutPage() {
 
       setReservation(data);
 
-      const { data: checklists } = await supabase
-        .from('rental_checklists')
+      const { data: checklists } = await (supabase
+
+
+        .from('rental_checklists') as any)
+
+
         .select('*')
-        .eq('reservation_id', id);
+        .eq('reservation_id', id!);
 
       if (checklists) {
-        const preRentalChecklist = checklists.find((c) => c.checklist_type === 'pre_rental');
-        const handoverChecklist = checklists.find((c) => c.checklist_type === 'handover');
+        const preRentalChecklist = checklists.find((c: any) => c.checklist_type === 'pre_rental');
+        const handoverChecklist = checklists.find((c: any) => c.checklist_type === 'handover');
 
         if (preRentalChecklist) {
           const items = preRentalChecklist.checklist_data as any;
@@ -174,10 +180,14 @@ export default function StaffCheckoutPage() {
         notes,
       };
 
-      const { data: existingChecklist } = await supabase
-        .from('rental_checklists')
+      const { data: existingChecklist } = await (supabase
+
+
+        .from('rental_checklists') as any)
+
+
         .select('id')
-        .eq('reservation_id', id)
+        .eq('reservation_id', id!)
         .eq('checklist_type', type)
         .maybeSingle();
 
@@ -192,8 +202,12 @@ export default function StaffCheckoutPage() {
           updateData.completed_at = new Date().toISOString();
         }
 
-        const { error } = await supabase
-          .from('rental_checklists')
+        const { error } = await (supabase
+
+
+          .from('rental_checklists') as any)
+
+
           .update(updateData)
           .eq('id', existingChecklist.id);
 
@@ -211,8 +225,12 @@ export default function StaffCheckoutPage() {
           insertData.completed_at = new Date().toISOString();
         }
 
-        const { error } = await supabase
-          .from('rental_checklists')
+        const { error } = await (supabase
+
+
+          .from('rental_checklists') as any)
+
+
           .insert(insertData);
 
         if (error) throw error;
@@ -220,10 +238,12 @@ export default function StaffCheckoutPage() {
 
       if (complete) {
         if (type === 'handover') {
-          const { error: updateError } = await supabase
-            .from('reservations')
+          const { error: updateError } = await (supabase
+
+            .from('reservations') as any)
+
             .update({ status: 'InProgress' })
-            .eq('id', id);
+            .eq('id', id!);
 
           if (updateError) throw updateError;
 

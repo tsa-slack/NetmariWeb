@@ -63,10 +63,12 @@ export default function EquipmentFormPage() {
 
     setLoadingData(true);
     try {
-      const { data, error } = await supabase
-        .from('equipment')
+      const { data, error } = await (supabase
+
+        .from('equipment') as any)
+
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .single();
 
       if (error) throw error;
@@ -109,8 +111,10 @@ export default function EquipmentFormPage() {
 
     try {
       if (isEditing) {
-        const { error } = await supabase
-          .from('equipment')
+        const { error } = await (supabase
+
+          .from('equipment') as any)
+
           .update({
             name: formData.name,
             category: formData.category,
@@ -122,14 +126,16 @@ export default function EquipmentFormPage() {
             status: formData.is_published ? 'Available' : 'Unavailable',
             pricing_type: formData.pricing_type,
           })
-          .eq('id', id);
+          .eq('id', id!);
 
         if (error) throw error;
 
         alert('ギヤを更新しました');
       } else {
-        const { error } = await supabase
-          .from('equipment')
+        const { error } = await (supabase
+
+          .from('equipment') as any)
+
           .insert({
             name: formData.name,
             category: formData.category,
@@ -332,9 +338,9 @@ export default function EquipmentFormPage() {
                 ギヤ画像
               </label>
               <ImageUpload
-                currentImage={formData.image_url}
-                onImageUploaded={(url) => setFormData({ ...formData, image_url: url })}
-                bucket="equipment-images"
+                value={formData.image_url}
+                onChange={(url) => setFormData({ ...formData, image_url: url })}
+                bucket="images"
               />
             </div>
 

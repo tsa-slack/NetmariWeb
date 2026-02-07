@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Calendar, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { SystemSettingsRepository, useQuery } from '../lib/data-access';
 
 export default function RentalPage() {
   const navigate = useNavigate();
@@ -11,35 +11,24 @@ export default function RentalPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState('');
-  const [rentalEnabled, setRentalEnabled] = useState(true);
-  const [checkingSettings, setCheckingSettings] = useState(true);
 
-  useEffect(() => {
-    checkRentalEnabled();
-  }, []);
+  // リポジトリインスタンスを作成
+  const settingsRepo = new SystemSettingsRepository();
 
+  // レンタル有効状態を取得
+  const { data: rentalEnabledValue, loading: checkingSettings } = useQuery<string | null>(
+    async () => settingsRepo.findByKey('rental_enabled'),
+    { enabled: true }
+  );
+
+  const rentalEnabled = rentalEnabledValue === 'true';
+
+  // ユーザー認証チェック
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login?redirect=/rental');
     }
-  }, [user, loading, navigate]);
-
-  const checkRentalEnabled = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'rental_enabled')
-        .maybeSingle();
-
-      if (error) throw error;
-      setRentalEnabled(data?.value === 'true');
-    } catch (error) {
-      console.error('Error checking rental settings:', error);
-    } finally {
-      setCheckingSettings(false);
-    }
-  };
+  }, [loading, user, navigate]);
 
   if (loading || checkingSettings) {
     return (

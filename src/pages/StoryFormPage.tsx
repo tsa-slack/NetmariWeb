@@ -6,9 +6,9 @@ import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, X, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
-import type { Database } from '../lib/database.types';
 
-type Story = Database['public']['Tables']['stories']['Row'];
+
+
 
 export default function StoryFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,8 +42,10 @@ export default function StoryFormPage() {
 
   const loadStory = async () => {
     try {
-      const { data, error } = await supabase
-        .from('stories')
+      const { data, error } = await (supabase
+
+        .from('stories') as any)
+
         .select('*')
         .eq('id', id!)
         .maybeSingle();
@@ -167,22 +169,22 @@ export default function StoryFormPage() {
       };
 
       if (id) {
-        const { error } = await supabase
-          .from('stories')
-          .update(storyData)
-          .eq('id', id);
+        const { error } = await (supabase
+        .from('stories') as any)
+        .update(storyData)
+        .eq('id', id!);
 
         if (error) throw error;
         navigate(`/portal/stories/${id}`);
       } else {
-        const { data, error } = await supabase
-          .from('stories')
-          .insert({
-            ...storyData,
-            author_id: user.id,
-          })
-          .select()
-          .single();
+        const { data, error } = await (supabase
+        .from('stories') as any)
+        .insert({
+          ...storyData,
+          author_id: user.id,
+        })
+        .select()
+        .single();
 
         if (error) throw error;
         navigate(`/portal/stories/${data.id}`);

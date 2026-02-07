@@ -67,8 +67,8 @@ export default function UserManagementPage() {
     if (!editingUser || !newRole) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
+      const { error } = await (supabase
+        .from('users') as any)
         .update({ role: newRole })
         .eq('id', editingUser.id);
 

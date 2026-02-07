@@ -78,8 +78,12 @@ export default function ContactManagementPage() {
         updates.resolved_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('contacts')
+      const { error } = await (supabase
+
+
+        .from('contacts') as any)
+
+
         .update(updates)
         .eq('id', contactId);
 
@@ -106,8 +110,10 @@ export default function ContactManagementPage() {
     if (!selectedContact) return;
 
     try {
-      const { error } = await supabase
-        .from('contacts')
+      const { error } = await (supabase
+
+        .from('contacts') as any)
+
         .update({ admin_notes: adminNotes })
         .eq('id', selectedContact.id);
 
@@ -296,7 +302,7 @@ export default function ContactManagementPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 mb-2">
-                        {contact.name} ({getCategoryLabel(contact.category)})
+                        {contact.name} ({getCategoryLabel(contact.category || '')})
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(contact.created_at).toLocaleDateString('ja-JP', {
@@ -366,7 +372,7 @@ export default function ContactManagementPage() {
                     <div>
                       <p className="text-xs text-gray-500 mb-1">カテゴリー</p>
                       <p className="text-sm text-gray-800">
-                        {getCategoryLabel(selectedContact.category)}
+                        {getCategoryLabel(selectedContact.category || '')}
                       </p>
                     </div>
                   </div>

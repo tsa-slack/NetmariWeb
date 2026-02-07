@@ -141,8 +141,8 @@ export default function StaffSidebar() {
 
   const handleEquipmentToggle = async (prepId: string, currentPrepared: boolean) => {
     try {
-      const { error } = await supabase
-        .from('equipment_preparations')
+      const { error } = await (supabase
+        .from('equipment_preparations') as any)
         .update({
           prepared: !currentPrepared,
           prepared_at: !currentPrepared ? new Date().toISOString() : null
@@ -199,15 +199,23 @@ export default function StaffSidebar() {
             {type === 'checkout' && section === 'tomorrow' && (
               <div className="flex gap-1 ml-2">
                 {preRentalDone ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" title="貸出前チェック完了" />
+                  <span title="貸出前チェック完了">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  </span>
                 ) : (
-                  <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" title="貸出前チェック未完了" />
+                  <span title="貸出前チェック未完了">
+                    <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  </span>
                 )}
                 {equipmentPreps.length > 0 && (
                   allEquipmentPrepared ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" title="装備品積込完了" />
+                    <span title="装備品積込完了">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    </span>
                   ) : (
-                    <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" title="装備品準備中" />
+                    <span title="装備品準備中">
+                      <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </span>
                   )
                 )}
               </div>
@@ -215,18 +223,26 @@ export default function StaffSidebar() {
             {type === 'checkout' && section === 'today' && (
               <div className="flex gap-1 ml-2">
                 {handoverDone ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" title="引き渡し完了" />
+                  <span title="引き渡し完了">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  </span>
                 ) : (
-                  <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" title="引き渡し未完了" />
+                  <span title="引き渡し未完了">
+                    <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  </span>
                 )}
               </div>
             )}
             {type === 'return' && (
               <div className="flex gap-1 ml-2">
                 {returnDone ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" title="返却チェック完了" />
+                  <span title="返却チェック完了">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  </span>
                 ) : (
-                  <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" title="返却チェック未完了" />
+                  <span title="返却チェック未完了">
+                    <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  </span>
                 )}
               </div>
             )}

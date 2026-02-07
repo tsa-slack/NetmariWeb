@@ -1,56 +1,50 @@
-import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
 import {
   Users,
   Car,
   MapPin,
   BookOpen,
 } from 'lucide-react';
+import {
+  UserRepository,
+  PartnerRepository,
+  ReservationRepository,
+  StoryRepository,
+  useQuery,
+  useRepository,
+} from '../lib/data-access';
 
 export default function AdminPage() {
-  const { user, profile, loading, isAdmin, isStaff } = useAuth();
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalPartners: 0,
-    totalReservations: 0,
-    totalStories: 0,
-    pendingReviews: 0,
-  });
+  const { user, loading, isAdmin, isStaff } = useAuth();
 
-  useEffect(() => {
-    if (user && (isAdmin || isStaff)) {
-      loadStats();
-    }
-  }, [user, isAdmin, isStaff]);
+  // リポジトリインスタンスを作成
+  const userRepo = useRepository(UserRepository);
+  const partnerRepo = useRepository(PartnerRepository);
+  const reservationRepo = useRepository(ReservationRepository);
+  const storyRepo = useRepository(StoryRepository);
 
-  const loadStats = async () => {
-    try {
-      const [usersRes, partnersRes, reservationsRes, storiesRes, reviewsRes] =
-        await Promise.all([
-          supabase.from('users').select('id', { count: 'exact', head: true }),
-          supabase.from('partners').select('id', { count: 'exact', head: true }),
-          supabase.from('reservations').select('id', { count: 'exact', head: true }),
-          supabase.from('stories').select('id', { count: 'exact', head: true }),
-          supabase
-            .from('reviews')
-            .select('id', { count: 'exact', head: true })
-            .eq('is_published', false),
-        ]);
+  // 統計情報を取得
+  const { data: totalUsers } = useQuery<number>(
+    async () => userRepo.count(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
-      setStats({
-        totalUsers: usersRes.count || 0,
-        totalPartners: partnersRes.count || 0,
-        totalReservations: reservationsRes.count || 0,
-        totalStories: storiesRes.count || 0,
-        pendingReviews: reviewsRes.count || 0,
-      });
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  };
+  const { data: totalPartners } = useQuery<number>(
+    async () => partnerRepo.count(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
+
+  const { data: totalReservations } = useQuery<number>(
+    async () => reservationRepo.count(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
+
+  const { data: totalStories } = useQuery<number>(
+    async () => storyRepo.count(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
 
   if (loading) {
     return (
@@ -81,7 +75,7 @@ export default function AdminPage() {
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <Users className="h-8 w-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.totalUsers}</span>
+                <span className="text-3xl font-bold">{totalUsers || 0}</span>
               </div>
               <p className="text-blue-100">総ユーザー数</p>
             </div>
@@ -89,7 +83,7 @@ export default function AdminPage() {
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <MapPin className="h-8 w-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.totalPartners}</span>
+                <span className="text-3xl font-bold">{totalPartners || 0}</span>
               </div>
               <p className="text-green-100">協力店舗数</p>
             </div>
@@ -97,7 +91,7 @@ export default function AdminPage() {
             <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <Car className="h-8 w-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.totalReservations}</span>
+                <span className="text-3xl font-bold">{totalReservations || 0}</span>
               </div>
               <p className="text-orange-100">総予約数</p>
             </div>
@@ -105,7 +99,7 @@ export default function AdminPage() {
             <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <BookOpen className="h-8 w-8 opacity-80" />
-                <span className="text-3xl font-bold">{stats.totalStories}</span>
+                <span className="text-3xl font-bold">{totalStories || 0}</span>
               </div>
               <p className="text-teal-100">投稿された体験記</p>
             </div>
