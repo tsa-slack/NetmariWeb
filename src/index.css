@@ -10,6 +10,7 @@
   -moz-appearance: none;
   appearance: none;
 }
+
 .date-input::-webkit-calendar-picker-indicator {
   opacity: 0;
   position: absolute;
@@ -17,4 +18,21 @@
   width: 100%;
   height: 100%;
   cursor: pointer;
+}
+
+/* モバイル全体: フォントサイズ縮小・テキスト折り返し */
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* テーブル等の横スクロール防止 */
+body {
+  overflow-x: hidden;
+  word-break: break-word;
 }

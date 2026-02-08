@@ -54,8 +54,8 @@ export default function ReservationsTab({
           .eq('reservation_id', reservationId),
       ]);
       setReservationDetails({
-        equipment: equipmentRes.data || [],
-        activities: activitiesRes.data || [],
+        equipment: (equipmentRes.data || []) as unknown as ReservationEquipmentItem[],
+        activities: (activitiesRes.data || []) as unknown as ReservationActivityItem[],
       });
     } catch (error) {
       logger.error('Error loading reservation details:', error);
@@ -108,89 +108,86 @@ export default function ReservationsTab({
               };
 
               return (
-                <div key={reservation.id} className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                <div key={reservation.id} className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-1 rounded-full text-xs sm:text-sm font-semibold ${
                         statusColors[reservation.status || 'Pending']
                       }`}>
                         {statusLabels[reservation.status || 'Pending']}
                       </span>
-                      <span className={`text-sm font-semibold ${
+                      <span className={`text-xs sm:text-sm font-semibold ${
                         paymentStatusColors[reservation.payment_status || 'Pending']
                       }`}>
                         {paymentStatusLabels[reservation.payment_status || 'Pending']}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-500">
                         予約日: {new Date(reservation.created_at || '').toLocaleDateString('ja-JP')}
                       </p>
-                      <button
-                        onClick={() => {
-                          setSelectedReservation(reservation);
-                          loadReservationDetails(reservation.id);
-                          setShowReservationDetail(true);
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
-                      >
-                        詳細を見る
-                      </button>
                     </div>
+                    <button
+                      onClick={() => {
+                        setSelectedReservation(reservation);
+                        loadReservationDetails(reservation.id);
+                        setShowReservationDetail(true);
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
+                    >
+                      詳細を見る
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     {images.length > 0 ? (
                       <div
-                        className="w-32 h-32 bg-cover bg-center rounded-lg flex-shrink-0"
+                        className="w-full sm:w-28 h-36 sm:h-28 bg-cover bg-center rounded-lg flex-shrink-0"
                         style={{ backgroundImage: `url(${images[0]})` }}
                       />
                     ) : (
-                      <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Car className="h-16 w-16 text-white" />
+                      <div className="w-full sm:w-28 h-36 sm:h-28 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Car className="h-12 w-12 text-white" />
                       </div>
                     )}
 
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 truncate">
                         {vehicle?.name || 'レンタル車両'}
                       </h3>
                       {vehicle?.manufacturer && (
-                        <p className="text-gray-600 mb-2">{vehicle.manufacturer}</p>
+                        <p className="text-sm text-gray-600 mb-1">{vehicle.manufacturer}</p>
                       )}
                       {reservation.rental_vehicle?.location && (
-                        <div className="flex items-center text-sm text-gray-600 mb-3">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {reservation.rental_vehicle.location}
+                        <div className="flex items-center text-xs text-gray-600 mb-2">
+                          <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{reservation.rental_vehicle.location}</span>
                         </div>
                       )}
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm">
                         <div>
-                          <p className="text-gray-600">利用開始日</p>
-                          <p className="font-semibold text-gray-800">
+                          <span className="text-gray-500">開始: </span>
+                          <span className="font-semibold text-gray-800">
                             {new Date(reservation.start_date).toLocaleDateString('ja-JP')}
-                          </p>
+                          </span>
                         </div>
                         <div>
-                          <p className="text-gray-600">返却日</p>
-                          <p className="font-semibold text-gray-800">
+                          <span className="text-gray-500">返却: </span>
+                          <span className="font-semibold text-gray-800">
                             {new Date(reservation.end_date).toLocaleDateString('ja-JP')}
-                          </p>
+                          </span>
                         </div>
                         <div>
-                          <p className="text-gray-600">利用日数</p>
-                          <p className="font-semibold text-gray-800">{reservation.days}日間</p>
+                          <span className="font-semibold text-gray-800">{reservation.days}日間</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600 mb-1">合計金額</p>
-                      <p className="text-3xl font-bold text-blue-600">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-t-0">
+                      <p className="text-xs text-gray-500">合計金額</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">
                         ¥{Number(reservation.total).toLocaleString()}
                       </p>
                       {reservation.payment_method && (
-                        <p className="text-sm text-gray-600 mt-2">
+                        <p className="text-xs text-gray-500 mt-1">
                           {reservation.payment_method === 'CreditCard' ? 'クレジットカード' : '現地払い'}
                         </p>
                       )}
