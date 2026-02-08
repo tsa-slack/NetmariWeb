@@ -159,15 +159,12 @@ export default function SettingsTab({ userSettings, setUserSettings, settingsLoa
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="public">公開</option>
-                  <option value="friends">フレンドのみ</option>
                   <option value="private">非公開</option>
                 </select>
                 <p className="text-sm text-gray-600 mt-1">
-                  {userSettings?.profile_visibility === 'Public'
-                    ? '誰でもプロフィールを閲覧できます'
-                    : userSettings?.profile_visibility === 'Friends'
-                    ? 'フレンドのみプロフィールを閲覧できます'
-                    : 'プロフィールは非公開です'}
+                  {userSettings?.profile_visibility === 'private'
+                    ? 'プロフィールは非公開です'
+                    : '誰でもプロフィールを閲覧できます'}
                 </p>
               </div>
 

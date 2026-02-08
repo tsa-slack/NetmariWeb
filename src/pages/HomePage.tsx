@@ -280,10 +280,10 @@ export default function HomePage() {
             </div>
             <div className="text-center mt-8">
               <Link
-                to="/rental"
+                to="/vehicles"
                 className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
               >
-                すべてのレンタル車両を見る
+                すべてのキャンピングカーを見る
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </div>
