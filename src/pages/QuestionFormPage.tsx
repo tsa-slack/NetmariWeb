@@ -175,7 +175,6 @@ export default function QuestionFormPage() {
                 <li>具体的で明確なタイトルをつける</li>
                 <li>問題の詳細を丁寧に説明する</li>
                 <li>すでに試したことがあれば記載する</li>
-                <li>画像や例があれば説明に含める</li>
               </ul>
             </div>
 

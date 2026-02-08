@@ -55,7 +55,18 @@ export default function QuestionDetailPage() {
     const incrementViews = async () => {
       if (!id) return;
       try {
-        await supabase.rpc('increment_question_views' as never, { question_id: id } as never);
+        const { data: current } = await supabase
+          .from('questions')
+          .select('views')
+          .eq('id', id)
+          .single();
+
+        const newViews = (current?.views || 0) + 1;
+
+        await supabase
+          .from('questions')
+          .update({ views: newViews })
+          .eq('id', id);
       } catch (error) {
         logger.error('Error incrementing views:', error);
       }

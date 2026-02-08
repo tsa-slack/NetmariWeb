@@ -32,7 +32,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const questionsWithCount = (data || []).map((q: any) => ({
                 ...q,
-                answer_count: q.answers?.length || 0
+                answer_count: q.answers?.[0]?.count ?? 0
             }));
 
             return { success: true, data: questionsWithCount } as const;
