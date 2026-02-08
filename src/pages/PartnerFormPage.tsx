@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
-import { useQuery } from '../lib/data-access';
+import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { useQuery, useRepository, PartnerRepository } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 
 
@@ -22,7 +24,12 @@ export default function PartnerFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { profile, loading: authLoading } = useAuth();
+  const partnerRepo = useRepository(PartnerRepository);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   const [name, setName] = useState('');
   const [type, setType] = useState('RVPark');
@@ -43,13 +50,10 @@ export default function PartnerFormPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { loading } = useQuery<any>(
     async () => {
-      const { data, error } = await (supabase
-        .from('images'))
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-
-      if (error) throw error;
+      const result = await partnerRepo.findById(id!);
+      if (!result.success) throw result.error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = result.data as any;
       if (data) {
         setName(data.name);
         setType(data.type || 'RVPark');
@@ -82,6 +86,12 @@ export default function PartnerFormPage() {
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirmModal(false);
+
     try {
       setSubmitting(true);
 
@@ -110,45 +120,33 @@ export default function PartnerFormPage() {
       };
 
       if (isEdit) {
-        const { error } = await (supabase
-
-          .from('images'))
-
-          .update(partnerData)
-          .eq('id', id!);
-
-        if (error) throw error;
+        const result = await partnerRepo.update(id!, partnerData);
+        if (!result.success) throw result.error;
         toast.success('協力店を更新しました');
       } else {
-        const { data, error } = await (supabase
-
-          .from('images'))
-
-          .insert(partnerData)
-          .select()
-          .single();
-
-        if (error) throw error;
+        const result = await partnerRepo.create(partnerData);
+        if (!result.success) throw result.error;
         toast.success('協力店を作成しました');
-        navigate(`/partners/${data.id}`);
+        navigate(`/partners/${result.data.id}`);
         return;
       }
 
       navigate(`/partners/${id}`);
     } catch (error) {
-      logger.error('Error saving partner:', error);
-      toast.error(`協力店の${isEdit ? '更新' : '作成'}に失敗しました`);
+      handleError(error, `協力店の${isEdit ? '更新' : '作成'}に失敗しました`);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleFormChange = () => {
+    if (!isDirty) setIsDirty(true);
+  };
+
   if (authLoading || loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -159,6 +157,16 @@ export default function PartnerFormPage() {
 
   return (
     <Layout>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title={isEdit ? '協力店を更新しますか？' : '協力店を作成しますか？'}
+        message="この内容で保存します。よろしいですか？"
+        confirmText={isEdit ? '更新する' : '作成する'}
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6">
           <Link
@@ -174,7 +182,7 @@ export default function PartnerFormPage() {
             {isEdit ? '協力店を編集' : '新しい協力店を追加'}
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={handleFormChange} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { MapPin, Star, Search, Filter } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { PartnerRepository, useQuery, useRepository } from '../lib/data-access';
@@ -58,7 +61,7 @@ export default function PartnersPage() {
       } else if (sortBy === 'name') {
         return a.name.localeCompare(b.name, 'ja');
       } else {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime();
       }
     });
 
@@ -74,16 +77,10 @@ export default function PartnersPage() {
     return (
       <Layout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-red-800 font-semibold mb-2">エラーが発生しました</h2>
-            <p className="text-red-700 mb-4">{error.message}</p>
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
-              再試行
-            </button>
-          </div>
+          <ErrorState
+            message={error.message}
+            onRetry={() => refetch()}
+          />
         </div>
       </Layout>
     );
@@ -93,8 +90,8 @@ export default function PartnersPage() {
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">協力店</h1>
-          <p className="text-xl text-gray-600">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">協力店</h1>
+          <p className="text-lg md:text-xl text-gray-600">
             車中泊をサポートする協力店の情報
           </p>
         </div>
@@ -140,17 +137,16 @@ export default function PartnersPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner message="読み込み中..." />
         ) : filteredPartners.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow">
-            <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">
-              {(partners?.length || 0) === 0
-                ? '現在、協力店情報はありません'
-                : '条件に一致する協力店が見つかりませんでした'}
-            </p>
+          <div className="bg-white rounded-xl shadow">
+            <EmptyState
+              icon={MapPin}
+              title={(partners?.length || 0) === 0 ? '現在、協力店情報はありません' : '条件に一致する協力店が見つかりませんでした'}
+              message={(partners?.length || 0) === 0 ? '協力店の登録をご希望の方はお気軽にお問い合わせください' : undefined}
+              actionLabel={(partners?.length || 0) === 0 ? 'お問い合わせ' : undefined}
+              actionTo={(partners?.length || 0) === 0 ? '/contact' : undefined}
+            />
           </div>
         ) : (
           <>

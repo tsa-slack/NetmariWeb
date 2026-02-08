@@ -2,48 +2,31 @@ import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
-import {
-  Car,
-  Plus,
-  Edit,
-  Trash2,
-  Filter,
-  Search,
-  DollarSign,
-  Eye,
-  Tag,
-} from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { VehicleRepository, useRepository, useQuery } from '../lib/data-access';
+import { Car, Plus, Edit, Trash2, Filter, Search, Eye, Tag } from 'lucide-react';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 import type { Database } from '../lib/database.types';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export default function SaleVehicleManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
-  const [filter, setFilter] = useState<'all' | 'sale' | 'rental' | 'both'>('all');
+  const vehicleRepo = useRepository(VehicleRepository);
+  const [filter, setFilter] = useState<'all_sale' | 'sale' | 'both'>('all_sale');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
-  // 車両一覧を取得
+  // 販売車両一覧を取得（sale + both のみ）
   const { data: vehicles, loading: loadingVehicles, refetch } = useQuery<Vehicle[]>(
     async () => {
-      let query = supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('purpose', filter);
+      if (filter === 'all_sale') {
+        // 販売関連の車両のみ取得（sale + both）
+        return vehicleRepo.findForSale();
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return vehicleRepo.findAllFiltered(filter);
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
@@ -52,18 +35,13 @@ export default function SaleVehicleManagementPage() {
     if (!selectedVehicle) return;
 
     try {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', selectedVehicle.id);
-
-      if (error) throw error;
+      const result = await vehicleRepo.delete(selectedVehicle.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedVehicle(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting vehicle:', error);
-      toast.error('車両の削除に失敗しました');
+      handleError(error, '車両の削除に失敗しました');
     }
   };
 
@@ -132,9 +110,7 @@ export default function SaleVehicleManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -146,9 +122,9 @@ export default function SaleVehicleManagementPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
               <Car className="h-10 w-10 mr-3 text-blue-600" />
               販売車両管理
             </h1>
@@ -172,12 +148,11 @@ export default function SaleVehicleManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as 'all_sale' | 'sale' | 'both')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">すべて</option>
+                <option value="all_sale">すべて（販売関連）</option>
                 <option value="sale">販売のみ</option>
-                <option value="rental">レンタルのみ</option>
                 <option value="both">販売・レンタル両方</option>
               </select>
             </div>
@@ -199,9 +174,7 @@ export default function SaleVehicleManagementPage() {
         </div>
 
         {loadingVehicles ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredVehicles.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Car className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -248,10 +221,10 @@ export default function SaleVehicleManagementPage() {
                     <div className="absolute top-2 right-2 flex gap-2">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getPurposeColor(
-                          (vehicle as { purpose?: string }).purpose
+                          (vehicle as { purpose?: string }).purpose ?? null
                         )}`}
                       >
-                        {getPurposeLabel((vehicle as { purpose?: string }).purpose)}
+                        {getPurposeLabel((vehicle as { purpose?: string }).purpose ?? null)}
                       </span>
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
@@ -277,8 +250,7 @@ export default function SaleVehicleManagementPage() {
                         <p className="text-sm text-gray-600">年式: {vehicle.year}年</p>
                       )}
                       {vehicle.price && (
-                        <p className="text-lg font-bold text-blue-600 flex items-center">
-                          <DollarSign className="h-5 w-5 mr-1" />
+                        <p className="text-lg font-bold text-blue-600">
                           ¥{Number(vehicle.price).toLocaleString()}
                         </p>
                       )}

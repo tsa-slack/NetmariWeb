@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import ImageUpload from '../components/ImageUpload';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, X, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
-import { useQuery } from '../lib/data-access';
+import { useQuery, useRepository, StoryRepository } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 
 
@@ -17,10 +19,14 @@ export default function StoryFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const storyRepo = useRepository(StoryRepository);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -41,13 +47,10 @@ export default function StoryFormPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { loading: loadingStory } = useQuery<any>(
     async () => {
-      const { data, error } = await (supabase
-        .from('stories'))
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-
-      if (error) throw error;
+      const result = await storyRepo.findById(id!);
+      if (!result.success) throw result.error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = result.data as any;
 
       if (!data) {
         navigate('/portal/stories');
@@ -105,8 +108,7 @@ export default function StoryFormPage() {
       const imageUrls = await Promise.all(uploadPromises);
       setUploadedImages([...uploadedImages, ...imageUrls]);
     } catch (error) {
-      logger.error('Error uploading images:', error);
-      toast.error('画像のアップロードに失敗しました');
+      handleError(error, '画像のアップロードに失敗しました');
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -122,8 +124,7 @@ export default function StoryFormPage() {
       }
       setUploadedImages(uploadedImages.filter((url) => url !== imageUrl));
     } catch (error) {
-      logger.error('Error deleting image:', error);
-      toast.error('画像の削除に失敗しました');
+      handleError(error, '画像の削除に失敗しました');
     }
   };
 
@@ -162,29 +163,19 @@ export default function StoryFormPage() {
       };
 
       if (id) {
-        const { error } = await (supabase
-        .from('stories'))
-        .update(storyData)
-        .eq('id', id!);
-
-        if (error) throw error;
+        const result = await storyRepo.update(id, storyData);
+        if (!result.success) throw result.error;
         navigate(`/portal/stories/${id}`);
       } else {
-        const { data, error } = await (supabase
-        .from('stories'))
-        .insert({
+        const result = await storyRepo.create({
           ...storyData,
           author_id: user.id,
-        })
-        .select()
-        .single();
-
-        if (error) throw error;
-        navigate(`/portal/stories/${data.id}`);
+        });
+        if (!result.success) throw result.error;
+        navigate(`/portal/stories/${result.data.id}`);
       }
     } catch (error) {
-      logger.error('Error saving story:', error);
-      toast.error('投稿の保存に失敗しました');
+      handleError(error, '投稿の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -193,9 +184,7 @@ export default function StoryFormPage() {
   if (loadingStory) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -222,7 +211,7 @@ export default function StoryFormPage() {
             {id ? '投稿を編集' : '新規投稿'}
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 タイトル <span className="text-red-500">*</span>

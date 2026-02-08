@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface RentalVehicle {
   id: string;
@@ -91,8 +91,7 @@ export default function VehicleManagementPage() {
       if (error) throw error;
       refetch();
     } catch (error) {
-      logger.error('Error updating vehicle:', error);
-      toast.error('ステータスの変更に失敗しました');
+      handleError(error, 'ステータスの変更に失敗しました');
     }
   };
 
@@ -110,8 +109,7 @@ export default function VehicleManagementPage() {
       setSelectedVehicle(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting vehicle:', error);
-      toast.error('車両の削除に失敗しました');
+      handleError(error, '車両の削除に失敗しました');
     }
   };
 
@@ -160,9 +158,7 @@ export default function VehicleManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -174,9 +170,9 @@ export default function VehicleManagementPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
               <Car className="h-10 w-10 mr-3 text-purple-600" />
               レンタル車両管理
             </h1>
@@ -202,7 +198,7 @@ export default function VehicleManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -229,9 +225,7 @@ export default function VehicleManagementPage() {
         </div>
 
         {loadingVehicles ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredVehicles.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Car className="h-16 w-16 text-gray-300 mx-auto mb-4" />

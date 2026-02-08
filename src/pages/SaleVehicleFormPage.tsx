@@ -3,11 +3,13 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import ImageUpload from '../components/ImageUpload';
-import { supabase } from '../lib/supabase';
+import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { Car, Save, ArrowLeft } from 'lucide-react';
-import { useQuery } from '../lib/data-access';
+import { useQuery, useRepository, VehicleRepository } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 interface VehicleFormData {
   name: string;
@@ -26,6 +28,7 @@ export default function SaleVehicleFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
+  const vehicleRepo = useRepository(VehicleRepository);
 
   const [formData, setFormData] = useState<VehicleFormData>({
     name: '',
@@ -40,6 +43,10 @@ export default function SaleVehicleFormPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   // 編集時に車両データを取得
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,13 +54,10 @@ export default function SaleVehicleFormPage() {
     async () => {
       if (!id) return { success: true, data: null };
 
-      const { data, error } = await (supabase
-        .from('vehicles'))
-        .select('*')
-        .eq('id', id!)
-        .single();
-
-      if (error) throw error;
+      const result = await vehicleRepo.findById(id);
+      if (!result.success) throw result.error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = result.data as any;
 
       if (data) {
         setFormData({
@@ -65,7 +69,7 @@ export default function SaleVehicleFormPage() {
           description: data.description || '',
           purpose: (data.purpose as 'sale' | 'rental' | 'both') || 'sale',
           status: data.status || 'Available',
-          images: Array.isArray(data.images) ? data.images : [],
+          images: Array.isArray(data.images) ? data.images.filter((img: unknown): img is string => typeof img === 'string') : [],
         });
       }
 
@@ -82,6 +86,11 @@ export default function SaleVehicleFormPage() {
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirmModal(false);
     setSubmitting(true);
 
     try {
@@ -98,30 +107,18 @@ export default function SaleVehicleFormPage() {
       };
 
       if (isEditing) {
-        const { error } = await (supabase
-
-          .from('vehicles'))
-
-          .update(vehicleData)
-          .eq('id', id!);
-
-        if (error) throw error;
+        const result = await vehicleRepo.update(id!, vehicleData);
+        if (!result.success) throw result.error;
         toast.success('車両を更新しました');
       } else {
-        const { error } = await (supabase
-
-          .from('vehicles'))
-
-          .insert(vehicleData);
-
-        if (error) throw error;
+        const result = await vehicleRepo.create(vehicleData);
+        if (!result.success) throw result.error;
         toast.success('車両を登録しました');
       }
 
       navigate('/admin/sale-vehicles');
     } catch (error) {
-      logger.error('Error saving vehicle:', error);
-      toast.error('車両の保存に失敗しました');
+      handleError(error, '車両の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -141,12 +138,14 @@ export default function SaleVehicleFormPage() {
     });
   };
 
+  const handleFormChange = () => {
+    if (!isDirty) setIsDirty(true);
+  };
+
   if (loading || loadingData) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -157,6 +156,16 @@ export default function SaleVehicleFormPage() {
 
   return (
     <AdminLayout>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title={isEditing ? '販売車両を更新しますか？' : '販売車両を登録しますか？'}
+        message="この内容で保存します。よろしいですか？"
+        confirmText={isEditing ? '更新する' : '登録する'}
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <button
@@ -167,7 +176,7 @@ export default function SaleVehicleFormPage() {
             販売車両管理に戻る
           </button>
 
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Car className="h-10 w-10 mr-3 text-blue-600" />
             {isEditing ? '販売車両編集' : '販売車両登録'}
           </h1>
@@ -176,7 +185,7 @@ export default function SaleVehicleFormPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
+        <form onSubmit={handleSubmit} onChange={handleFormChange} className="bg-white rounded-xl shadow-lg p-8">
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">

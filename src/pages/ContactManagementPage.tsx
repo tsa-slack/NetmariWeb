@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
+
 import type { Database } from '../lib/database.types';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
+import { useQuery, useRepository, ContactRepository } from '../lib/data-access';
 import {
   Mail,
   Phone,
@@ -18,12 +17,15 @@ import {
   User,
   Calendar,
 } from 'lucide-react';
-import { logger } from '../lib/logger';
+import { toast } from 'sonner';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Contact = Database['public']['Tables']['contacts']['Row'];
 
 export default function ContactManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
+  const contactRepo = useRepository(ContactRepository);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -35,14 +37,11 @@ export default function ContactManagementPage() {
   // お問い合わせ一覧を取得
   const { loading: loadingContacts } = useQuery<Contact[]>(
     async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setContacts(data || []);
-      return { success: true, data: data || [] };
+      const result = await contactRepo.findAllOrdered();
+      if (result.success) {
+        setContacts(result.data);
+      }
+      return result;
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
@@ -73,16 +72,8 @@ export default function ContactManagementPage() {
         updates.resolved_at = new Date().toISOString();
       }
 
-      const { error } = await (supabase
-
-
-        .from('contacts'))
-
-
-        .update(updates)
-        .eq('id', contactId);
-
-      if (error) throw error;
+      const result = await contactRepo.update(contactId, updates);
+      if (!result.success) throw result.error;
 
       setContacts(
         contacts.map((c) =>
@@ -94,8 +85,7 @@ export default function ContactManagementPage() {
         setSelectedContact({ ...selectedContact, ...updates });
       }
     } catch (error) {
-      logger.error('Error updating contact status:', error);
-      toast.error('ステータスの更新に失敗しました');
+      handleError(error, 'ステータスの更新に失敗しました');
     } finally {
       setUpdatingStatus(false);
     }
@@ -105,14 +95,8 @@ export default function ContactManagementPage() {
     if (!selectedContact) return;
 
     try {
-      const { error } = await (supabase
-
-        .from('contacts'))
-
-        .update({ admin_notes: adminNotes })
-        .eq('id', selectedContact.id);
-
-      if (error) throw error;
+      const result = await contactRepo.update(selectedContact.id, { admin_notes: adminNotes });
+      if (!result.success) throw result.error;
 
       setContacts(
         contacts.map((c) =>
@@ -123,8 +107,7 @@ export default function ContactManagementPage() {
       setSelectedContact({ ...selectedContact, admin_notes: adminNotes });
       toast.success('メモを保存しました');
     } catch (error) {
-      logger.error('Error updating admin notes:', error);
-      toast.error('メモの保存に失敗しました');
+      handleError(error, 'メモの保存に失敗しました');
     }
   };
 
@@ -193,9 +176,7 @@ export default function ContactManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -208,7 +189,7 @@ export default function ContactManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">
             お問い合わせ管理
           </h1>
           <p className="text-gray-600">ユーザーからのお問い合わせを管理</p>
@@ -262,9 +243,7 @@ export default function ContactManagementPage() {
 
             <div className="bg-white rounded-xl shadow-lg p-4 max-h-[600px] overflow-y-auto">
               {loadingContacts ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
+                <LoadingSpinner size="sm" fullPage={false} />
               ) : filteredContacts.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">
                   お問い合わせがありません
@@ -290,17 +269,17 @@ export default function ContactManagementPage() {
                         </h4>
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                            contact.status
+                            contact.status || ''
                           )}`}
                         >
-                          {getStatusIcon(contact.status)}
+                          {getStatusIcon(contact.status || '')}
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 mb-2">
                         {contact.name} ({getCategoryLabel(contact.category || '')})
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(contact.created_at).toLocaleDateString('ja-JP', {
+                        {new Date(contact.created_at || '').toLocaleDateString('ja-JP', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -328,7 +307,7 @@ export default function ContactManagementPage() {
                       </span>
                       <span className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(selectedContact.created_at).toLocaleDateString(
+                        {new Date(selectedContact.created_at || '').toLocaleDateString(
                           'ja-JP'
                         )}
                       </span>
@@ -336,11 +315,11 @@ export default function ContactManagementPage() {
                   </div>
                   <span
                     className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold ${getStatusColor(
-                      selectedContact.status
+                      selectedContact.status || ''
                     )}`}
                   >
-                    {getStatusIcon(selectedContact.status)}
-                    <span className="ml-1.5">{getStatusLabel(selectedContact.status)}</span>
+                    {getStatusIcon(selectedContact.status || '')}
+                    <span className="ml-1.5">{getStatusLabel(selectedContact.status || '')}</span>
                   </span>
                 </div>
 

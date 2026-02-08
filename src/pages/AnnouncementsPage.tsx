@@ -4,9 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { Bell, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { AnnouncementRepository, useQuery, useRepository } from '../lib/data-access';
-import { supabase } from '../lib/supabase';
+
 import type { Row } from '../lib/data-access/base/types';
 import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Announcement = Row<'announcements'> & {
   author?: {
@@ -22,42 +23,10 @@ export default function AnnouncementsPage() {
   // リポジトリインスタンスを作成
   const announcementRepo = useRepository(AnnouncementRepository);
 
-  // お知らせ一覧を取得
+  // お知らせ一覧を取得（公開済み・著者情報付き）
   const { data: announcementsData, loading, error, refetch } = useQuery<Announcement[]>(
     async () => {
-      // 基本的なお知らせ取得
-      const result = await announcementRepo.findAll({
-        orderBy: { column: 'published_at', ascending: false },
-      });
-
-      if (!result.success) {
-        return result;
-      }
-
-      // 公開済みのみフィルタ & 著者情報を取得
-      const publishedAnnouncements = await Promise.all(
-        result.data
-          .filter(announcement => announcement.published)
-          .map(async (announcement) => {
-            // 著者情報を取得
-            let author = undefined;
-            if (announcement.author_id) {
-              const { data } = await supabase
-                .from('users')
-                .select('first_name, last_name')
-                .eq('id', announcement.author_id)
-                .maybeSingle();
-              author = data || undefined;
-            }
-
-            return {
-              ...announcement,
-              author,
-            } as Announcement;
-          })
-      );
-
-      return { success: true, data: publishedAnnouncements } as const;
+      return announcementRepo.findPublishedWithAuthor();
     },
     {
       onError: (err: Error) => {
@@ -80,9 +49,7 @@ export default function AnnouncementsPage() {
   if (authLoading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -140,7 +107,7 @@ export default function AnnouncementsPage() {
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">お知らせ</h1>
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">お知らせ</h1>
           <p className="text-gray-600">重要なお知らせや更新情報をチェックしよう</p>
         </div>
 
@@ -188,9 +155,7 @@ export default function AnnouncementsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : filteredAnnouncements.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -232,7 +197,7 @@ export default function AnnouncementsPage() {
                     </div>
                   </div>
                   <div className="text-right text-sm text-gray-600">
-                    <p>{new Date(announcement.published_at || '').toLocaleDateString('ja-JP')}</p>
+                    <p>{announcement.created_at ? new Date(announcement.created_at).toLocaleDateString('ja-JP') : '-'}</p>
                     {announcement.author && (
                       <p className="text-xs">
                         投稿者: {announcement.author.first_name}{' '}

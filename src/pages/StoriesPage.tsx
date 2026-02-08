@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, Heart, Eye, Plus, MapPin, Calendar } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { StoryRepository, useQuery, useRepository } from '../lib/data-access';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Story = Database['public']['Tables']['stories']['Row'] & {
   users?: { first_name: string; last_name: string };
@@ -43,10 +44,10 @@ export default function StoriesPage() {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 md:mb-12">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">体験記・コミュニティ</h1>
-            <p className="text-xl text-gray-600">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2 md:mb-4">体験記・コミュニティ</h1>
+            <p className="text-lg md:text-xl text-gray-600">
               車中泊愛好家の実体験を共有し、情報交換しましょう
             </p>
           </div>
@@ -62,9 +63,7 @@ export default function StoriesPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : (stories?.length || 0) === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -122,10 +121,10 @@ export default function StoriesPage() {
                         <span>{story.location}</span>
                       </div>
                     )}
-                    {story.published_at && (
+                    {story.created_at && (
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="h-4 w-4 mr-1" />
-                        <span>{new Date(story.published_at).toLocaleDateString('ja-JP')}</span>
+                        <span>{new Date(story.created_at).toLocaleDateString('ja-JP')}</span>
                       </div>
                     )}
                   </div>

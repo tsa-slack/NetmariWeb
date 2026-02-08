@@ -1,19 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
 import { Settings, Save, AlertCircle, CheckCircle, Info, Award } from 'lucide-react';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { useQuery, SystemSettingsRepository } from '../lib/data-access';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 interface SystemSetting {
   id: string;
   key: string;
-  value: string;
-  description: string;
-  updated_at: string;
+  value: string | null;
+  description: string | null;
+  updated_at: string | null;
 }
 
 interface RankConfig {
@@ -35,6 +34,7 @@ interface RankSettings {
 
 export default function SystemSettingsPage() {
   const { user, loading, isAdmin } = useAuth();
+  const settingsRepo = useMemo(() => new SystemSettingsRepository(), []);
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [rankSettings, setRankSettings] = useState<RankSettings | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,12 +44,10 @@ export default function SystemSettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { loading: loadingSettings } = useQuery<any>(
     async () => {
-      const { data, error } = await (supabase
-        .from('system_settings'))
-        .select('*')
-        .order('key');
+      const result = await settingsRepo.findAllRaw();
+      if (!result.success) throw result.error;
 
-      if (error) throw error;
+      const data = result.data;
       setSettings(data || []);
 
       // ランク設定を取得
@@ -57,17 +55,7 @@ export default function SystemSettingsPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const settingWithRank = data.find((s: any) => s.key === 'rank_settings');
         if (settingWithRank) {
-          setRankSettings(JSON.parse(settingWithRank.value));
-        } else {
-          const { data: rankData } = await (supabase
-            .from('system_settings'))
-            .select('rank_settings')
-            .limit(1)
-            .maybeSingle();
-
-          if (rankData && rankData.rank_settings) {
-            setRankSettings(rankData.rank_settings as RankSettings);
-          }
+          setRankSettings(JSON.parse(settingWithRank.value ?? '{}'));
         }
       }
 
@@ -93,33 +81,20 @@ export default function SystemSettingsPage() {
     try {
       // 通常の設定を保存
       for (const setting of settings) {
-        const { error } = await (supabase
-
-          .from('system_settings'))
-
-          .update({ value: setting.value })
-          .eq('key', setting.key);
-
-        if (error) throw error;
+        const result = await settingsRepo.updateByKey(setting.key, setting.value);
+        if (!result.success) throw result.error;
       }
 
-      // ランク設定を保存
-      if (rankSettings) {
-        const { error } = await (supabase
-
-          .from('system_settings'))
-
-          .update({ rank_settings: rankSettings })
-          .limit(1);
-
-        if (error) throw error;
+      // ランク設定を保存（rank_settings カラムを最初の行に保存）
+      if (rankSettings && settings.length > 0) {
+        const result = await settingsRepo.updateRankSettings(settings[0].key, rankSettings);
+        if (!result.success) throw result.error;
       }
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      logger.error('Error saving settings:', error);
-      toast.error('設定の保存に失敗しました');
+      handleError(error, '設定の保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -140,6 +115,8 @@ export default function SystemSettingsPage() {
     });
   };
 
+  const booleanSettingKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
+
   const getSettingLabel = (key: string) => {
     switch (key) {
       case 'rental_enabled':
@@ -156,9 +133,7 @@ export default function SystemSettingsPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -171,7 +146,7 @@ export default function SystemSettingsPage() {
     <AdminLayout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Settings className="h-10 w-10 mr-3 text-blue-600" />
             システム設定
           </h1>
@@ -197,13 +172,11 @@ export default function SystemSettingsPage() {
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {loadingSettings ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
+            <LoadingSpinner size="sm" fullPage={false} />
           ) : (
             <>
               <div className="divide-y">
-                {settings.map((setting) => (
+                {settings.filter(s => booleanSettingKeys.includes(s.key)).map((setting) => (
                   <div key={setting.id} className="p-6 hover:bg-gray-50 transition">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -213,7 +186,7 @@ export default function SystemSettingsPage() {
                         <p className="text-sm text-gray-600">{setting.description}</p>
                         <p className="text-xs text-gray-400 mt-2">
                           最終更新:{' '}
-                          {new Date(setting.updated_at).toLocaleString('ja-JP')}
+                          {setting.updated_at ? new Date(setting.updated_at).toLocaleString('ja-JP') : '-'}
                         </p>
                       </div>
                       <div className="ml-6">
@@ -303,6 +276,7 @@ export default function SystemSettingsPage() {
             </li>
           </ul>
         </div>
+
 
         {/* ランク設定 */}
         {rankSettings && (
@@ -419,12 +393,31 @@ export default function SystemSettingsPage() {
               </div>
 
               <div className="bg-gray-50 px-6 py-4 border-t">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                   <h4 className="font-semibold text-blue-800 mb-2">ランクアップ条件</h4>
                   <p className="text-sm text-blue-700">
                     各ランクの「累計利用金額」「いいね獲得数」「投稿数」のいずれかを満たすと、自動的にそのランクにアップします。
                     ランクはシステムが自動で計算・更新するため、管理者が手動で変更する必要はありません。
                   </p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        保存中...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-5 w-5 mr-2" />
+                        設定を保存
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

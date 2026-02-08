@@ -2,16 +2,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
+import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { useRepository, ContactRepository } from '../lib/data-access';
 import { Mail, Phone, MessageSquare, Send, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 export default function ContactPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const contactRepo = useRepository(ContactRepository);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !loading && !submitted);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,34 +48,36 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirmModal(false);
     setLoading(true);
 
     try {
-      const { error } = await (supabase
+      const result = await contactRepo.create({
+        user_id: user?.id || null,
+        name: formData.name,
+        email: formData.email,
+        phone_number: formData.phone_number || null,
+        subject: formData.subject,
+        message: formData.message,
+        category: formData.category,
+      });
 
-        .from('contacts'))
-
-        .insert([
-        {
-          user_id: user?.id || null,
-          name: formData.name,
-          email: formData.email,
-          phone_number: formData.phone_number || null,
-          subject: formData.subject,
-          message: formData.message,
-          category: formData.category,
-        },
-      ]);
-
-      if (error) throw error;
+      if (!result.success) throw result.error;
 
       setSubmitted(true);
     } catch (error) {
-      logger.error('Error submitting contact form:', error);
-      toast.error('お問い合わせの送信に失敗しました。もう一度お試しください。');
+      handleError(error, 'お問い合わせの送信に失敗しました。もう一度お試しください。');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFormChange = () => {
+    if (!isDirty) setIsDirty(true);
   };
 
   if (submitted) {
@@ -101,16 +110,26 @@ export default function ContactPage() {
 
   return (
     <Layout>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title="お問い合わせを送信しますか？"
+        message="この内容でお問い合わせを送信します。よろしいですか？"
+        confirmText="送信する"
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">お問い合わせ</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">お問い合わせ</h1>
           <p className="text-gray-600">
             ご質問やご要望がございましたら、以下のフォームよりお問い合わせください。
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
+          <form onSubmit={handleSubmit} onChange={handleFormChange} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label
@@ -241,7 +260,7 @@ export default function ContactPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t">
               <p className="text-sm text-gray-500">
                 <span className="text-red-600">*</span> は必須項目です
               </p>

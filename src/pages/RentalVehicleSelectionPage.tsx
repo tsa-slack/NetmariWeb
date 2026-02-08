@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { Car, Calendar, ArrowRight, ArrowLeft } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
+import { RentalFlowRepository } from '../lib/data-access/repositories';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type RentalVehicle = Database['public']['Tables']['rental_vehicles']['Row'] & {
-  vehicle?: Database['public']['Tables']['vehicles']['Row'];
+  vehicle?: Database['public']['Tables']['vehicles']['Row'] | null;
 };
+
+const rentalFlowRepo = new RentalFlowRepository();
 
 export default function RentalVehicleSelectionPage() {
   const navigate = useNavigate();
@@ -34,18 +37,10 @@ export default function RentalVehicleSelectionPage() {
   // レンタル車両データを取得
   const { loading } = useQuery<RentalVehicle[]>(
     async () => {
-      const { data, error } = await supabase
-        .from('rental_vehicles')
-        .select(`
-          *,
-          vehicle:vehicles(*)
-        `)
-        .eq('status', 'Available')
-        .order('price_per_day', { ascending: true });
-
-      if (error) throw error;
-      setRentalVehicles(data || []);
-      return { success: true, data: data || [] };
+      const result = await rentalFlowRepo.getAvailableVehicles(startDate, endDate);
+      if (!result.success) throw result.error;
+      setRentalVehicles(result.data || []);
+      return result;
     },
     { enabled: !!(user && startDate && endDate && days) }
   );
@@ -64,9 +59,7 @@ export default function RentalVehicleSelectionPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -82,7 +75,7 @@ export default function RentalVehicleSelectionPage() {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">レンタル車両の選択</h1>
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">レンタル車両の選択</h1>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
             <div className="flex items-center space-x-6">
               <div className="flex items-center">

@@ -26,7 +26,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
             <Car className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
               Netomari
             </span>
           </Link>
@@ -123,13 +123,13 @@ export default function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-2">
+          <div className="md:hidden py-4 space-y-2 border-t border-gray-200">
             <Link
               to="/vehicles"
               className="block py-2 text-gray-700 hover:text-blue-600"
               onClick={() => setMobileMenuOpen(false)}
             >
-              車両情報
+              販売車両
             </Link>
             {settings.rental_enabled && (
               <Link

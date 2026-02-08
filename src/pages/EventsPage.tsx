@@ -7,6 +7,7 @@ import { EventRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
 import type { Row } from '../lib/data-access/base/types';
 import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Event = Row<'events'> & {
   organizer?: {
@@ -14,6 +15,8 @@ type Event = Row<'events'> & {
     last_name: string;
   };
   participant_count?: number;
+  image_url?: string | null;
+  status?: string;
 };
 
 export default function EventsPage() {
@@ -42,8 +45,21 @@ export default function EventsPage() {
           const { data: organizer } = await supabase
             .from('users')
             .select('first_name, last_name')
-            .eq('id', event.organizer_id)
+            .eq('id', event.organizer_id!)
             .maybeSingle();
+
+          // ステータスを日付から計算
+          const now = new Date();
+          const eventDate = new Date(event.event_date);
+          const endDate = event.end_date ? new Date(event.end_date) : eventDate;
+          let status: string;
+          if (now < eventDate) {
+            status = 'Upcoming';
+          } else if (now <= endDate) {
+            status = 'Ongoing';
+          } else {
+            status = 'Completed';
+          }
 
           // 参加者数を取得
           const { count } = await supabase
@@ -56,6 +72,7 @@ export default function EventsPage() {
             ...event,
             organizer: organizer || undefined,
             participant_count: count || 0,
+            status,
           } as Event;
         })
       );
@@ -87,9 +104,7 @@ export default function EventsPage() {
   if (authLoading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -120,9 +135,9 @@ export default function EventsPage() {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">イベント</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">イベント</h1>
             <p className="text-gray-600">コミュニティのイベントを探して参加しよう</p>
           </div>
           <Link
@@ -134,7 +149,7 @@ export default function EventsPage() {
           </Link>
         </div>
 
-        <div className="mb-6 flex space-x-4">
+        <div className="mb-6 flex flex-wrap gap-2">
           <button
             onClick={() => setFilter('all')}
             className={`px-6 py-2 rounded-lg transition ${
@@ -168,9 +183,7 @@ export default function EventsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : filteredEvents.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />

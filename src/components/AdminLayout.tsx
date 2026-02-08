@@ -20,6 +20,8 @@ import {
   ShoppingCart,
   Tag,
   MessageCircle,
+  FileText,
+  Newspaper,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -31,6 +33,7 @@ interface NavItem {
   label: string;
   icon: ReactNode;
   adminOnly?: boolean;
+  staffVisible?: boolean; // スタッフにも表示するか
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -38,85 +41,118 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const { isAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // 現在のパスからスタッフモードかどうか判定
+  const isStaffMode = location.pathname.startsWith('/staff');
+  const basePath = isStaffMode ? '/staff' : '/admin';
+
   const navItems: NavItem[] = [
     {
-      path: '/admin',
+      path: `${basePath}`,
       label: 'ダッシュボード',
       icon: <LayoutDashboard className="h-5 w-5" />,
+      staffVisible: true,
     },
     {
-      path: '/admin/reservations',
+      path: `${basePath}/reservations`,
       label: '予約管理',
       icon: <Calendar className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/users',
+      path: `${basePath}/users`,
       label: 'ユーザー管理',
       icon: <Users className="h-5 w-5" />,
       adminOnly: true,
     },
     {
-      path: '/admin/vehicles',
+      path: `${basePath}/vehicles`,
       label: 'レンタル車両',
       icon: <Car className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/sale-vehicles',
+      path: `${basePath}/sale-vehicles`,
       label: '販売車両',
       icon: <ShoppingCart className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/equipment',
+      path: `${basePath}/equipment`,
       label: 'ギヤ管理',
       icon: <Package className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/partners',
+      path: `${basePath}/partners`,
       label: '協力店管理',
       icon: <MapPin className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/activities',
+      path: `${basePath}/activities`,
       label: 'アクティビティ管理',
       icon: <TrendingUp className="h-5 w-5" />,
+      adminOnly: true,
     },
     {
-      path: '/admin/stories',
+      path: `${basePath}/stories`,
       label: '投稿管理',
       icon: <BookOpen className="h-5 w-5" />,
+      staffVisible: true,
     },
     {
-      path: '/admin/reviews',
+      path: `${basePath}/reviews`,
       label: 'レビュー管理',
       icon: <Star className="h-5 w-5" />,
+      staffVisible: true,
     },
     {
-      path: '/admin/questions',
+      path: `${basePath}/questions`,
       label: '質問管理',
       icon: <MessageCircle className="h-5 w-5" />,
+      staffVisible: true,
     },
     {
-      path: '/admin/contacts',
+      path: `${basePath}/contacts`,
       label: 'お問い合わせ',
       icon: <Mail className="h-5 w-5" />,
+      staffVisible: true,
     },
     {
-      path: '/admin/categories',
+      path: `${basePath}/categories`,
       label: 'カテゴリー管理',
       icon: <Tag className="h-5 w-5" />,
       adminOnly: true,
     },
     {
-      path: '/admin/settings',
+      path: `${basePath}/content`,
+      label: 'コンテンツ管理',
+      icon: <FileText className="h-5 w-5" />,
+      adminOnly: true,
+    },
+    {
+      path: `${basePath}/news`,
+      label: 'ニュース管理',
+      icon: <Newspaper className="h-5 w-5" />,
+      adminOnly: true,
+    },
+    {
+      path: `${basePath}/settings`,
       label: 'システム設定',
       icon: <Settings className="h-5 w-5" />,
       adminOnly: true,
     },
   ];
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin
-  );
+  // ロールに応じてフィルタ:
+  // Admin: すべて表示
+  // Staff (admin画面): adminOnly以外を表示
+  // Staff (staff画面): staffVisible のみ表示
+  const filteredNavItems = navItems.filter((item) => {
+    if (isAdmin) return true;
+    if (isStaffMode) return item.staffVisible === true;
+    return !item.adminOnly;
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -151,7 +187,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         >
           <div className="h-full flex flex-col">
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">管理画面</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                {isStaffMode ? 'スタッフ管理' : '管理画面'}
+              </h2>
               <p className="text-sm text-gray-600 mt-1">
                 {isAdmin ? '管理者' : 'スタッフ'}
               </p>
@@ -161,7 +199,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 {filteredNavItems.map((item) => {
                   const isActive =
                     location.pathname === item.path ||
-                    (item.path !== '/admin' && location.pathname.startsWith(item.path + '/'));
+                    (item.path !== basePath && location.pathname.startsWith(item.path + '/'));
                   return (
                     <li key={item.path}>
                       <Link

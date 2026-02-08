@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
 import Layout from '../components/Layout';
-import { Car, Calendar, Star, MessageCircle } from 'lucide-react';
+import { Car, Star, MessageCircle } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { VehicleRepository, ReviewRepository, useQuery, useRepository } from '../lib/data-access';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -62,9 +63,7 @@ export default function VehicleDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -105,7 +104,7 @@ export default function VehicleDetailPage() {
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               {images.length > 0 ? (
                 <div className="aspect-video bg-cover bg-center rounded-lg" style={{ backgroundImage: `url(${images[0]})` }} />
               ) : (
@@ -115,7 +114,7 @@ export default function VehicleDetailPage() {
               )}
 
               {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 mt-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4">
                   {images.slice(1, 5).map((image, index) => (
                     <div
                       key={index}
@@ -127,9 +126,9 @@ export default function VehicleDetailPage() {
               )}
             </div>
 
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               <div className="mb-6">
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">{vehicle.name}</h1>
+                <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">{vehicle.name}</h1>
                 {vehicle.manufacturer && (
                   <p className="text-xl text-gray-600 mb-4">{vehicle.manufacturer}</p>
                 )}
@@ -170,7 +169,7 @@ export default function VehicleDetailPage() {
 
               {vehicle.price && (
                 <div className="mb-6">
-                  <div className="text-4xl font-bold text-blue-600">
+                  <div className="text-2xl md:text-4xl font-bold text-blue-600">
                     ¥{vehicle.price.toLocaleString()}
                   </div>
                 </div>
@@ -187,18 +186,18 @@ export default function VehicleDetailPage() {
 
               <div className="flex flex-col space-y-3">
                 <Link
-                  to="/rental"
+                  to="/contact"
                   className="flex items-center justify-center px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-semibold"
                 >
-                  <Calendar className="h-6 w-6 mr-2" />
-                  レンタル予約
+                  <MessageCircle className="h-6 w-6 mr-2" />
+                  お問い合わせ
                 </Link>
               </div>
             </div>
           </div>
 
           <div className="border-t">
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {Object.keys(specs).length > 0 && (
                   <div>
@@ -235,8 +234,8 @@ export default function VehicleDetailPage() {
           </div>
 
           <div className="border-t">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-4 md:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                   <MessageCircle className="h-6 w-6 mr-2" />
                   レビュー ({reviews?.length || 0})
@@ -252,7 +251,7 @@ export default function VehicleDetailPage() {
                 <div className="space-y-6">
                   {(reviews || []).map((review) => (
                     <div key={review.id} className="bg-gray-50 rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
                         <div>
                           <div className="flex items-center space-x-2 mb-2">
                             <div className="flex">
@@ -260,7 +259,7 @@ export default function VehicleDetailPage() {
                                 <Star
                                   key={i}
                                   className={`h-4 w-4 ${
-                                    i < review.rating
+                                    i < (review.rating ?? 0)
                                       ? 'text-yellow-400 fill-yellow-400'
                                       : 'text-gray-300'
                                   }`}
@@ -276,7 +275,7 @@ export default function VehicleDetailPage() {
                           )}
                         </div>
                         <span className="text-sm text-gray-600">
-                          {new Date(review.created_at).toLocaleDateString('ja-JP')}
+                          {new Date(review.created_at ?? '').toLocaleDateString('ja-JP')}
                         </span>
                       </div>
                       <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">

@@ -2,22 +2,25 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
+import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { supabase } from '../lib/supabase';
 import { Star, Car, ArrowLeft, Send } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Reservation = Database['public']['Tables']['reservations']['Row'] & {
   rental_vehicle?: {
     vehicle?: {
       id: string;
       name: string;
-      manufacturer?: string;
-      images?: string[];
-    };
-  };
+      manufacturer?: string | null;
+      images?: Database['public']['Tables']['vehicles']['Row']['images'];
+    } | null;
+  } | null;
 };
 
 export default function VehicleReviewFormPage() {
@@ -28,11 +31,15 @@ export default function VehicleReviewFormPage() {
 
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [existingReview, setExistingReview] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   useEffect(() => {
     if (!user) {
@@ -47,8 +54,7 @@ export default function VehicleReviewFormPage() {
   }, [user, reservationId]);
 
   // 予約データを取得
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { loading } = useQuery<any>(
+  const { loading } = useQuery<Reservation | null>(
     async () => {
       const { data: reservationData, error: reservationError } = await (supabase
         .from('reservations'))
@@ -109,6 +115,11 @@ export default function VehicleReviewFormPage() {
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirmModal(false);
     setSubmitting(true);
 
     try {
@@ -118,7 +129,7 @@ export default function VehicleReviewFormPage() {
 
         .insert({
         target_type: 'Vehicle',
-        target_id: reservation.rental_vehicle.vehicle.id,
+        target_id: reservation!.rental_vehicle?.vehicle?.id ?? '',
         reservation_id: reservationId,
         author_id: user!.id,
         rating,
@@ -129,22 +140,23 @@ export default function VehicleReviewFormPage() {
       if (error) throw error;
 
       toast.success('レビューを投稿しました');
-      navigate(`/vehicles/${reservation.rental_vehicle.vehicle.id}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+      navigate(`/vehicles/${reservation!.rental_vehicle?.vehicle?.id ?? ''}`);
+    } catch (error: unknown) {
       logger.error('Error submitting review:', error);
-      toast.error(error.message || 'レビューの投稿に失敗しました');
+      toast.error(error instanceof Error ? error.message : 'レビューの投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleFormChange = () => {
+    if (!isDirty) setIsDirty(true);
+  };
+
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -158,6 +170,16 @@ export default function VehicleReviewFormPage() {
 
   return (
     <Layout>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title="レビューを投稿しますか？"
+        message="この内容でレビューを投稿します。よろしいですか？"
+        confirmText="投稿する"
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6">
           <Link
@@ -200,7 +222,7 @@ export default function VehicleReviewFormPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={handleFormChange} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 評価 <span className="text-red-600">*</span>

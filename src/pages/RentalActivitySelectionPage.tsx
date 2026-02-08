@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
+import { RentalFlowRepository } from '../lib/data-access/repositories';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Activity = Database['public']['Tables']['activities']['Row'];
 
@@ -14,6 +15,8 @@ interface SelectedActivity {
   date: string;
   participants: number;
 }
+
+const rentalFlowRepo = new RentalFlowRepository();
 
 export default function RentalActivitySelectionPage() {
   const navigate = useNavigate();
@@ -44,15 +47,10 @@ export default function RentalActivitySelectionPage() {
   // アクティビティデータを取得
   const { loading } = useQuery<Activity[]>(
     async () => {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('status', 'Active')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setActivities(data || []);
-      return { success: true, data: data || [] };
+      const result = await rentalFlowRepo.getAvailableActivities();
+      if (!result.success) throw result.error;
+      setActivities(result.data || []);
+      return result;
     },
     { enabled: !!(user && startDate && endDate && days && vehicleId) }
   );
@@ -128,9 +126,7 @@ export default function RentalActivitySelectionPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -150,7 +146,7 @@ export default function RentalActivitySelectionPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">アクティビティの選択</h1>
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">アクティビティの選択</h1>
             <p className="text-gray-600 mb-8">体験したいアクティビティを追加してください（任意）</p>
 
             {selectedActivities.length > 0 && (

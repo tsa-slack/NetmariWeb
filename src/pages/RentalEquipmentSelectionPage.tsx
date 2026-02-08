@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { Package, Plus, Minus, ArrowRight, ArrowLeft, Calendar } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
+import { RentalFlowRepository } from '../lib/data-access/repositories';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Equipment = Database['public']['Tables']['equipment']['Row'] & {
   pricing_type?: string | null;
@@ -25,6 +26,8 @@ const CATEGORY_NAMES: Record<string, string> = {
   Safety: '安全装備',
   Other: 'その他',
 };
+
+const rentalFlowRepo = new RentalFlowRepository();
 
 export default function RentalEquipmentSelectionPage() {
   const navigate = useNavigate();
@@ -54,16 +57,10 @@ export default function RentalEquipmentSelectionPage() {
   // 装備データを取得
   const { loading } = useQuery<Equipment[]>(
     async () => {
-      const { data, error } = await (supabase
-        .from('equipment'))
-        .select('*')
-        .eq('status', 'Available')
-        .order('category', { ascending: true })
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setEquipment(data || []);
-      return { success: true, data: data || [] };
+      const result = await rentalFlowRepo.getAvailableEquipment();
+      if (!result.success) throw result.error;
+      setEquipment(result.data || []);
+      return result;
     },
     { enabled: !!(user && startDate && endDate && days && vehicleId) }
   );
@@ -71,7 +68,7 @@ export default function RentalEquipmentSelectionPage() {
   const handleQuantityChange = (eq: Equipment, delta: number) => {
     const current = selectedEquipment.get(eq.id);
     const currentQty = current?.quantity || 0;
-    const newQty = Math.max(0, Math.min(eq.available_quantity, currentQty + delta));
+    const newQty = Math.max(0, Math.min(eq.available_quantity ?? 0, currentQty + delta));
 
     if (newQty === 0) {
       const newMap = new Map(selectedEquipment);
@@ -131,9 +128,7 @@ export default function RentalEquipmentSelectionPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -153,7 +148,7 @@ export default function RentalEquipmentSelectionPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">ギア・装備の選択</h1>
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">ギア・装備の選択</h1>
             <p className="text-gray-600 mb-8">必要な装備を追加してください（任意）</p>
 
             {equipment.length === 0 ? (
@@ -220,7 +215,7 @@ export default function RentalEquipmentSelectionPage() {
                               </span>
                               <button
                                 onClick={() => handleQuantityChange(eq, 1)}
-                                disabled={selectedQty >= eq.available_quantity}
+                                disabled={selectedQty >= (eq.available_quantity ?? 0)}
                                 className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-gray-300 hover:border-blue-600 hover:bg-blue-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 <Plus className="h-4 w-4 text-gray-600" />

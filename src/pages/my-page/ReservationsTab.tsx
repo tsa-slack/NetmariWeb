@@ -4,6 +4,7 @@ import { Calendar, Car, MapPin, MessageSquare, CheckCircle, X } from 'lucide-rea
 import { supabase } from '../../lib/supabase';
 import type { Reservation } from './types';
 import { logger } from '../../lib/logger';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface ReservationEquipmentItem {
   id: string;
@@ -66,9 +67,7 @@ export default function ReservationsTab({
       <div>
         <h2 className="text-2xl font-bold text-gray-800 mb-6">予約一覧</h2>
         {reservationsLoading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : (myReservations?.length || 0) === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow">
             <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />

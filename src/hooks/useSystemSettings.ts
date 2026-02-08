@@ -6,6 +6,12 @@ interface SystemSettings {
   rental_enabled: boolean;
   partner_registration_enabled: boolean;
   user_registration_enabled: boolean;
+  hero_image_url: string;
+  hero_title: string;
+  hero_subtitle: string;
+  rental_intro_title: string;
+  rental_intro_description: string;
+  faq_items: string;
 }
 
 export function useSystemSettings() {
@@ -22,20 +28,31 @@ export function useSystemSettings() {
     rental_enabled: true,
     partner_registration_enabled: true,
     user_registration_enabled: true,
+    hero_image_url: '',
+    hero_title: 'どこでも、寝泊まりを。',
+    hero_subtitle: '車中泊に特化したキャンピングカーコミュニティサービス',
+    rental_intro_title: '車中泊レンタルの魅力',
+    rental_intro_description: 'キャンピングカーでの車中泊は自由な旅の始まり。',
+    faq_items: '',
   });
 
   useEffect(() => {
     if (settingsData) {
-      const settingsMap: Partial<SystemSettings> = {};
+      const booleanKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
+      const newSettings: Partial<SystemSettings> = {};
       Object.entries(settingsData).forEach(([key, value]) => {
         if (key in settings) {
-          settingsMap[key as keyof SystemSettings] = value === 'true';
+          if (booleanKeys.includes(key)) {
+            (newSettings as Record<string, unknown>)[key] = value === 'true';
+          } else {
+            (newSettings as Record<string, unknown>)[key] = value || '';
+          }
         }
       });
 
       setSettings((prev) => ({
         ...prev,
-        ...settingsMap,
+        ...newSettings,
       }));
     }
   }, [settingsData]);

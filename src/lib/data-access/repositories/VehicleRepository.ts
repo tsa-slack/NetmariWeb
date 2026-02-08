@@ -61,4 +61,18 @@ export class VehicleRepository extends BaseRepository<'vehicles'> {
 
         return query.execute();
     }
+
+    /**
+     * 管理用：フィルタ付きで車両一覧を取得
+     */
+    async findAllFiltered(purposeFilter?: string): Promise<Result<Row<'vehicles'>[]>> {
+        const query = new QueryBuilder<Row<'vehicles'>>(this.table)
+            .orderBy('created_at', 'desc');
+
+        if (purposeFilter && purposeFilter !== 'all') {
+            query.whereEqual('purpose', purposeFilter);
+        }
+
+        return query.execute();
+    }
 }

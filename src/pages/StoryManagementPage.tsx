@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
+
 import {
   BookOpen,
   Eye,
@@ -15,9 +15,9 @@ import {
   Edit,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { useQuery, useRepository, StoryRepository } from '../lib/data-access';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Story {
   id: string;
@@ -39,6 +39,7 @@ interface Story {
 
 export default function StoryManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
+  const storyRepo = useRepository(StoryRepository);
   const [filter, setFilter] = useState<'all' | 'Published' | 'Draft' | 'Archived'>(
     'all'
   );
@@ -50,32 +51,7 @@ export default function StoryManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: stories, loading: loadingStories, refetch } = useQuery<any[]>(
     async () => {
-      // フィルター付きクエリ（管理用に直接Supabaseを使用）
-      let query = supabase
-        .from('stories')
-        .select(`
-          id,
-          title,
-          excerpt,
-          content,
-          cover_image,
-          location,
-          status,
-          likes,
-          views,
-          published_at,
-          created_at,
-          author:users!stories_author_id_fkey(full_name, email)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return storyRepo.findAllForAdmin(filter === 'all' ? undefined : filter);
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
@@ -89,20 +65,11 @@ export default function StoryManagementPage() {
         updates.published_at = new Date().toISOString();
       }
 
-      const { error } = await (supabase
-
-
-        .from('stories'))
-
-
-        .update(updates)
-        .eq('id', storyId);
-
-      if (error) throw error;
+      const result = await storyRepo.update(storyId, updates);
+      if (!result.success) throw result.error;
       refetch();
     } catch (error) {
-      logger.error('Error updating story:', error);
-      toast.error('ステータスの変更に失敗しました');
+      handleError(error, 'ステータスの変更に失敗しました');
     }
   };
 
@@ -110,18 +77,13 @@ export default function StoryManagementPage() {
     if (!selectedStory) return;
 
     try {
-      const { error } = await supabase
-        .from('stories')
-        .delete()
-        .eq('id', selectedStory.id);
-
-      if (error) throw error;
+      const result = await storyRepo.delete(selectedStory.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedStory(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting story:', error);
-      toast.error('体験記の削除に失敗しました');
+      handleError(error, '体験記の削除に失敗しました');
     }
   };
 
@@ -166,9 +128,7 @@ export default function StoryManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -181,7 +141,7 @@ export default function StoryManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <BookOpen className="h-10 w-10 mr-3 text-blue-600" />
             投稿管理（体験記）
           </h1>
@@ -197,7 +157,7 @@ export default function StoryManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as 'all' | 'Published' | 'Draft' | 'Archived')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -224,9 +184,7 @@ export default function StoryManagementPage() {
         </div>
 
         {loadingStories ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredStories.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />

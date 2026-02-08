@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { UserRoute } from './types';
-import { logger } from '../../lib/logger';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { handleError } from '../../lib/handleError';
 
 interface RoutesTabProps {
   myRoutes: UserRoute[];
@@ -28,8 +29,7 @@ export default function RoutesTab({ myRoutes, setMyRoutes, routesLoading }: Rout
       );
       toast.success(!currentStatus ? 'ルートを公開しました' : 'ルートを非公開にしました');
     } catch (error) {
-      logger.error('Error toggling route publish status:', error);
-      toast.error('公開状態の変更に失敗しました');
+      handleError(error, '公開状態の変更に失敗しました');
     }
   };
 
@@ -41,8 +41,7 @@ export default function RoutesTab({ myRoutes, setMyRoutes, routesLoading }: Rout
       setMyRoutes((prev) => prev.filter((route) => route.id !== routeToDelete));
       toast.success('ルートを削除しました');
     } catch (error) {
-      logger.error('Error deleting route:', error);
-      toast.error('ルートの削除に失敗しました');
+      handleError(error, 'ルートの削除に失敗しました');
     } finally {
       setShowDeleteRouteModal(false);
       setRouteToDelete(null);
@@ -64,9 +63,7 @@ export default function RoutesTab({ myRoutes, setMyRoutes, routesLoading }: Rout
         </div>
 
         {routesLoading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : myRoutes.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center shadow">
             <Route className="h-16 w-16 text-gray-400 mx-auto mb-4" />

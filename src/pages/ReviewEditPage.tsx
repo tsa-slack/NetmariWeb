@@ -3,12 +3,14 @@ import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { supabase } from '../lib/supabase';
 import { Star } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 type Review = Database['public']['Tables']['reviews']['Row'];
 
@@ -19,6 +21,9 @@ export default function ReviewEditPage() {
   const [review, setReview] = useState<Review | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -40,9 +45,9 @@ export default function ReviewEditPage() {
 
       if (data) {
         setReview(data);
-        setRating(data.rating);
+        setRating(data.rating ?? 5);
         setTitle(data.title || '');
-        setContent(data.content);
+        setContent(data.content ?? '');
       }
 
       return { success: true, data };
@@ -118,8 +123,7 @@ export default function ReviewEditPage() {
       toast.success('レビューを更新しました');
       navigate('/my');
     } catch (error) {
-      logger.error('Error updating review:', error);
-      toast.error('レビューの更新に失敗しました');
+      handleError(error, 'レビューの更新に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -128,9 +132,7 @@ export default function ReviewEditPage() {
   if (authLoading || loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -155,7 +157,7 @@ export default function ReviewEditPage() {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-8">レビューを編集</h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 評価 <span className="text-red-600">*</span>

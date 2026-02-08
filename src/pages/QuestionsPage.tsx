@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { MessageCircle, Plus, Eye, CheckCircle } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { QuestionRepository, useQuery, useRepository } from '../lib/data-access';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Question = Database['public']['Tables']['questions']['Row'] & {
   author?: {
@@ -52,9 +53,7 @@ export default function QuestionsPage() {
   if (authLoading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -87,9 +86,9 @@ export default function QuestionsPage() {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">Q&A</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Q&A</h1>
             <p className="text-gray-600">コミュニティに質問して、知識を共有しよう</p>
           </div>
           <Link
@@ -102,10 +101,10 @@ export default function QuestionsPage() {
         </div>
 
         <div className="mb-6 space-y-4">
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-6 py-2 rounded-lg transition ${
+              className={`px-4 md:px-6 py-2 rounded-lg transition ${
                 filter === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -163,9 +162,7 @@ export default function QuestionsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner />
         ) : (questions?.length || 0) === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -210,7 +207,7 @@ export default function QuestionsPage() {
                         {question.author?.first_name} {question.author?.last_name}
                       </span>
                       <span>
-                        {new Date(question.created_at).toLocaleDateString('ja-JP')}
+                        {question.created_at ? new Date(question.created_at).toLocaleDateString('ja-JP') : '-'}
                       </span>
                     </div>
                   </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
+
 import {
   MessageCircle,
   Eye,
@@ -16,9 +16,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { useQuery, useRepository, QuestionRepository } from '../lib/data-access';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Question {
   id: string;
@@ -38,6 +38,7 @@ interface Question {
 
 export default function QuestionManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
+  const questionRepo = useRepository(QuestionRepository);
   const [filter, setFilter] = useState<'all' | 'Open' | 'Resolved' | 'Closed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -47,58 +48,18 @@ export default function QuestionManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: questions, loading: loadingQuestions, refetch } = useQuery<any[]>(
     async () => {
-      let query = supabase
-        .from('questions')
-        .select(`
-          *,
-          author:users!questions_author_id_fkey(full_name, email)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
-
-      const { data: questionsData, error: questionsError } = await query;
-      if (questionsError) throw questionsError;
-
-      const { data: answerCounts, error: answersError } = await (supabase
-        .from('answers'))
-        .select('question_id');
-
-      if (answersError) throw answersError;
-
-      const answerCountMap: Record<string, number> = {};
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      answerCounts?.forEach((answer: any) => {
-        answerCountMap[answer.question_id] = (answerCountMap[answer.question_id] || 0) + 1;
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const questionsWithCounts = (questionsData || []).map((q: any) => ({
-        ...q,
-        answer_count: answerCountMap[q.id] || 0,
-      }));
-
-      return { success: true, data: questionsWithCounts };
+      return questionRepo.findAllForAdmin(filter === 'all' ? undefined : filter);
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
 
   const updateStatus = async (questionId: string, newStatus: string) => {
     try {
-      const { error } = await (supabase
-
-        .from('questions'))
-
-        .update({ status: newStatus })
-        .eq('id', questionId!);
-
-      if (error) throw error;
+      const result = await questionRepo.update(questionId, { status: newStatus });
+      if (!result.success) throw result.error;
       refetch();
     } catch (error) {
-      logger.error('Error updating question:', error);
-      toast.error('ステータスの変更に失敗しました');
+      handleError(error, 'ステータスの変更に失敗しました');
     }
   };
 
@@ -106,18 +67,13 @@ export default function QuestionManagementPage() {
     if (!selectedQuestion) return;
 
     try {
-      const { error } = await supabase
-        .from('questions')
-        .delete()
-        .eq('id', selectedQuestion.id);
-
-      if (error) throw error;
+      const result = await questionRepo.delete(selectedQuestion.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedQuestion(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting question:', error);
-      toast.error('質問の削除に失敗しました');
+      handleError(error, '質問の削除に失敗しました');
     }
   };
 
@@ -180,9 +136,7 @@ export default function QuestionManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -195,7 +149,7 @@ export default function QuestionManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <MessageCircle className="h-10 w-10 mr-3 text-blue-600" />
             質問管理
           </h1>
@@ -211,7 +165,7 @@ export default function QuestionManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -238,9 +192,7 @@ export default function QuestionManagementPage() {
         </div>
 
         {loadingQuestions ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredQuestions.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <MessageCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />

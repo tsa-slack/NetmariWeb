@@ -2,20 +2,10 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
-import {
-  Users,
-  Shield,
-  User,
-  Search,
-  Filter,
-  Calendar,
-  Mail,
-  Edit,
-} from 'lucide-react';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { UserRepository, useRepository, useQuery } from '../lib/data-access';
+import { Users, Shield, User, Search, Filter, Calendar, Mail, Edit } from 'lucide-react';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface UserProfile {
   id: string;
@@ -29,6 +19,7 @@ interface UserProfile {
 
 export default function UserManagementPage() {
   const { user, loading, isAdmin } = useAuth();
+  const userRepo = useRepository(UserRepository);
   const [filter, setFilter] = useState<'all' | 'Members' | 'Admin' | 'Staff' | 'Partners'>(
     'all'
   );
@@ -40,18 +31,7 @@ export default function UserManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: users, loading: loadingUsers, refetch } = useQuery<any[]>(
     async () => {
-      let query = supabase
-        .from('users')
-        .select('id, email, first_name, last_name, phone_number, role, created_at')
-        .order('created_at', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('role', filter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return userRepo.findAllFiltered(filter === 'all' ? undefined : filter);
     },
     { enabled: !!(user && isAdmin) }
   );
@@ -60,19 +40,14 @@ export default function UserManagementPage() {
     if (!editingUser || !newRole) return;
 
     try {
-      const { error } = await (supabase
-        .from('users'))
-        .update({ role: newRole })
-        .eq('id', editingUser.id);
-
-      if (error) throw error;
+      const result = await userRepo.update(editingUser.id, { role: newRole });
+      if (!result.success) throw result.error;
 
       setEditingUser(null);
       setNewRole('');
       refetch();
     } catch (error) {
-      logger.error('Error updating user role:', error);
-      toast.error('ロールの変更に失敗しました');
+      handleError(error, 'ロールの変更に失敗しました');
     }
   };
 
@@ -134,9 +109,7 @@ export default function UserManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -149,7 +122,7 @@ export default function UserManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Users className="h-10 w-10 mr-3 text-blue-600" />
             ユーザー管理
           </h1>
@@ -165,7 +138,7 @@ export default function UserManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -193,9 +166,7 @@ export default function UserManagementPage() {
         </div>
 
         {loadingUsers ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredUsers.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { RentalChecklistRepository } from '../lib/data-access/repositories';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -14,29 +14,33 @@ import {
   MapPin,
   AlertTriangle,
 } from 'lucide-react';
-import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
+import type { Database } from '../lib/database.types';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
+
+type ChecklistRow = Database['public']['Tables']['rental_checklists']['Row'];
 
 interface ChecklistData {
   items?: { label: string; checked: boolean }[];
   notes?: string;
   damageNotes?: string;
   hasDamage?: boolean;
+  mileage?: string;
 }
 
 type Reservation = Database['public']['Tables']['reservations']['Row'] & {
-  user?: { first_name: string; last_name: string; email: string; phone_number?: string };
+  user?: { first_name: string; last_name: string; email: string; phone_number?: string } | null;
   rental_vehicle?: {
     id: string;
-    location: string;
+    location: string | null;
     vehicle?: {
       name: string;
       manufacturer: string;
       type: string;
-    };
-  };
+    } | null;
+  } | null;
 };
 
 type ChecklistItem = {
@@ -60,6 +64,8 @@ const RETURN_ITEMS: ChecklistItem[] = [
   { id: 'customer_feedback', label: 'お客様フィードバック', checked: false },
 ];
 
+const checklistRepo = new RentalChecklistRepository();
+
 export default function StaffReturnPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -73,46 +79,29 @@ export default function StaffReturnPage() {
   const [saving, setSaving] = useState(false);
 
   // 予約データを取得
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { loading } = useQuery<any>(
+  const { loading } = useQuery<Reservation | null>(
     async () => {
       if (!id) return { success: true, data: null };
 
-      const { data, error } = await (supabase
-        .from('reservations'))
-        .select(`
-          *,
-          user:users!reservations_user_id_fkey(first_name, last_name, email, phone_number),
-          rental_vehicle:rental_vehicles(
-            id,
-            location,
-            vehicle:vehicles(name, manufacturer, type)
-          )
-        `)
-        .eq('id', id!)
-        .maybeSingle();
+      const reservationResult = await checklistRepo.getReservationWithDetails(id);
+      if (!reservationResult.success) throw reservationResult.error;
 
-      if (error) throw error;
-      if (!data) {
+      if (!reservationResult.data) {
         toast.error('予約が見つかりません');
         navigate('/staff');
         return { success: true, data: null };
       }
 
-      setReservation(data);
+      setReservation(reservationResult.data);
 
-      const { data: checklists } = await (supabase
-        .from('rental_checklists'))
-        .select('*')
-        .eq('reservation_id', id!);
-
-      if (checklists) {
-        const returnChecklist = checklists.find((c) => c.checklist_type === 'return');
+      const checklistResult = await checklistRepo.getChecklists(id);
+      if (checklistResult.success && checklistResult.data) {
+        const returnChecklist = checklistResult.data.find((c: ChecklistRow) => c.checklist_type === 'return');
 
         if (returnChecklist) {
           const checklistData = returnChecklist.checklist_data as ChecklistData;
           if (checklistData.items) {
-            setReturnItems(checklistData.items);
+            setReturnItems(checklistData.items as ChecklistItem[]);
           }
           if (checklistData.notes) {
             setReturnNotes(checklistData.notes);
@@ -129,7 +118,7 @@ export default function StaffReturnPage() {
         }
       }
 
-      return { success: true, data };
+      return { success: true, data: reservationResult.data };
     },
     { enabled: !!(user && (isStaff || isAdmin) && id) }
   );
@@ -155,84 +144,22 @@ export default function StaffReturnPage() {
         mileage,
       };
 
-      const { data: existingChecklist } = await (supabase
+      const result = await checklistRepo.upsertChecklist(
+        id,
+        'return',
+        checklistData,
+        returnNotes,
+        complete ? user.id : undefined
+      );
 
-
-        .from('rental_checklists'))
-
-
-        .select('id')
-        .eq('reservation_id', id!)
-        .eq('checklist_type', 'return')
-        .maybeSingle();
-
-      if (existingChecklist) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = {
-          checklist_data: checklistData,
-          notes: returnNotes,
-        };
-
-        if (complete) {
-          updateData.completed_by = user.id;
-          updateData.completed_at = new Date().toISOString();
-        }
-
-        const { error } = await (supabase
-
-
-          .from('rental_checklists'))
-
-
-          .update(updateData)
-          .eq('id', existingChecklist.id);
-
-        if (error) throw error;
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const insertData: any = {
-          reservation_id: id,
-          checklist_type: 'return',
-          checklist_data: checklistData,
-          notes: returnNotes,
-        };
-
-        if (complete) {
-          insertData.completed_by = user.id;
-          insertData.completed_at = new Date().toISOString();
-        }
-
-        const { error } = await (supabase
-
-
-          .from('rental_checklists'))
-
-
-          .insert(insertData);
-
-        if (error) throw error;
-      }
+      if (!result.success) throw result.error;
 
       if (complete) {
-        const { error: updateError } = await (supabase
-
-          .from('reservations'))
-
-          .update({ status: 'Completed' })
-          .eq('id', id!);
-
-        if (updateError) throw updateError;
-
-        const { error: vehicleError } = await (supabase
-
-
-          .from('rental_vehicles'))
-
-
-          .update({ status: 'Available' })
-          .eq('id', reservation?.rental_vehicle_id);
-
-        if (vehicleError) throw vehicleError;
+        const returnResult = await checklistRepo.completeReturn(
+          id,
+          reservation?.rental_vehicle_id || ''
+        );
+        if (!returnResult.success) throw returnResult.error;
 
         toast.success('返却処理が完了しました');
         navigate('/staff');
@@ -240,8 +167,7 @@ export default function StaffReturnPage() {
         toast.success('チェックリストを保存しました');
       }
     } catch (error) {
-      logger.error('Error saving checklist:', error);
-      toast.error('保存に失敗しました');
+      handleError(error, '保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -249,9 +175,7 @@ export default function StaffReturnPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <LoadingSpinner fullPage />
     );
   }
 

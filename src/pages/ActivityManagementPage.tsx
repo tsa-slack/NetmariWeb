@@ -5,9 +5,9 @@ import AdminLayout from '../components/AdminLayout';
 import { supabase } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Clock, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { useQuery, useRepository, ActivityRepository } from '../lib/data-access';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 interface Activity {
   id: string;
@@ -26,9 +26,11 @@ interface Activity {
 
 export default function ActivityManagementPage() {
   const { user, loading: authLoading, isAdmin, isStaff } = useAuth();
+  const activityRepo = useRepository(ActivityRepository);
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   const [formData, setFormData] = useState({
     partner_id: '',
@@ -45,16 +47,7 @@ export default function ActivityManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: activities, loading, refetch: refetchActivities } = useQuery<any[]>(
     async () => {
-      const { data, error } = await supabase
-        .from('activities')
-        .select(`
-          *,
-          partner:partners(name)
-        `)
-        .order('name');
-
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return activityRepo.findAllWithPartner();
     },
     { enabled: true }
   );
@@ -74,23 +67,20 @@ export default function ActivityManagementPage() {
     { enabled: true }
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowSubmitModal(true);
+  };
 
+  const confirmSubmit = async () => {
+    setShowSubmitModal(false);
     try {
       if (editingActivity) {
-        const { error } = await (supabase
-          .from('activities'))
-          .update(formData)
-          .eq('id', editingActivity.id);
-
-        if (error) throw error;
+        const result = await activityRepo.update(editingActivity.id, formData);
+        if (!result.success) throw result.error;
       } else {
-        const { error } = await (supabase
-          .from('activities'))
-          .insert([formData]);
-
-        if (error) throw error;
+        const result = await activityRepo.create(formData);
+        if (!result.success) throw result.error;
       }
 
       setShowForm(false);
@@ -98,23 +88,17 @@ export default function ActivityManagementPage() {
       resetForm();
       refetchActivities();
     } catch (error) {
-      logger.error('Error saving activity:', error);
-      toast.error('アクティビティの保存に失敗しました');
+      handleError(error, 'アクティビティの保存に失敗しました');
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('activities')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const result = await activityRepo.delete(id);
+      if (!result.success) throw result.error;
       refetchActivities();
     } catch (error) {
-      logger.error('Error deleting activity:', error);
-      toast.error('アクティビティの削除に失敗しました');
+      handleError(error, 'アクティビティの削除に失敗しました');
     } finally {
       setDeleteConfirm(null);
     }
@@ -166,9 +150,7 @@ export default function ActivityManagementPage() {
   if (authLoading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -180,9 +162,9 @@ export default function ActivityManagementPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
               <TrendingUp className="h-10 w-10 mr-3 text-orange-600" />
               アクティビティ管理
             </h1>
@@ -356,9 +338,7 @@ export default function ActivityManagementPage() {
         )}
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : (activities || []).length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -456,6 +436,16 @@ export default function ActivityManagementPage() {
         onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
         title="アクティビティを削除"
         message="このアクティビティを削除してもよろしいですか？この操作は取り消せません。"
+      />
+      <ConfirmModal
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onConfirm={confirmSubmit}
+        title={editingActivity ? 'アクティビティを更新しますか？' : 'アクティビティを登録しますか？'}
+        message="この内容で保存します。よろしいですか？"
+        confirmText="保存する"
+        cancelText="キャンセル"
+        type="info"
       />
     </AdminLayout>
   );

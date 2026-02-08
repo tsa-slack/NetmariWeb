@@ -3,12 +3,14 @@ import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { supabase } from '../lib/supabase';
 import { Star } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 
@@ -19,6 +21,9 @@ export default function PartnerReviewPage() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -70,7 +75,7 @@ export default function PartnerReviewPage() {
 
         .insert({
         target_type: 'Partner',
-        target_id: id,
+        target_id: id!,
         author_id: user!.id,
         rating,
         title: title.trim() || null,
@@ -106,8 +111,7 @@ export default function PartnerReviewPage() {
       toast.success('レビューを投稿しました');
       navigate(`/partners/${id}`);
     } catch (error) {
-      logger.error('Error submitting review:', error);
-      toast.error('レビューの投稿に失敗しました');
+      handleError(error, 'レビューの投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -116,9 +120,7 @@ export default function PartnerReviewPage() {
   if (authLoading || loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -144,7 +146,7 @@ export default function PartnerReviewPage() {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">レビューを書く</h1>
           <p className="text-gray-600 mb-8">{partner.name}</p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 評価 <span className="text-red-600">*</span>

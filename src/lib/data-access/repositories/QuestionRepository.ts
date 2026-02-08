@@ -22,7 +22,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
                 .select(`
           *,
           author:users!questions_author_id_fkey (first_name, last_name),
-          answers:question_answers (count)
+          answers:answers (count)
         `)
                 .order('created_at', { ascending: false });
 
@@ -76,6 +76,55 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             return {
                 success: false,
                 error: error instanceof Error ? error : new Error('Failed to fetch question')
+            } as const;
+        }
+    }
+
+    /**
+     * 管理用：著者情報・回答数付きで質問一覧を取得（ステータスフィルタ対応）
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async findAllForAdmin(statusFilter?: string): Promise<Result<any[]>> {
+        try {
+            let query = this.client
+                .from(this.table)
+                .select(`
+                    *,
+                    author:users!questions_author_id_fkey(full_name, email)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (statusFilter && statusFilter !== 'all') {
+                query = query.eq('status', statusFilter);
+            }
+
+            const { data: questionsData, error: questionsError } = await query;
+            if (questionsError) throw questionsError;
+
+            // 回答数を集計
+            const { data: answerCounts, error: answersError } = await this.client
+                .from('answers')
+                .select('question_id');
+
+            if (answersError) throw answersError;
+
+            const answerCountMap: Record<string, number> = {};
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            answerCounts?.forEach((answer: any) => {
+                answerCountMap[answer.question_id] = (answerCountMap[answer.question_id] || 0) + 1;
+            });
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const questionsWithCounts = (questionsData || []).map((q: any) => ({
+                ...q,
+                answer_count: answerCountMap[q.id] || 0,
+            }));
+
+            return { success: true, data: questionsWithCounts } as const;
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error : new Error('Failed to fetch questions')
             } as const;
         }
     }

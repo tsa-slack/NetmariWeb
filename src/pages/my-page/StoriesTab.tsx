@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, Plus, Heart, Eye } from 'lucide-react';
 import type { MyStory } from './types';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface StoriesTabProps {
   myStories: MyStory[] | undefined;
@@ -22,9 +23,7 @@ export default function StoriesTab({ myStories, storiesLoading }: StoriesTabProp
       </div>
 
       {storiesLoading ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner size="sm" fullPage={false} />
       ) : (myStories?.length || 0) === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
           <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />

@@ -80,7 +80,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+
+      if (data) {
+        setProfile(data);
+      } else {
+        // DB トリガーでプロフィールが作成されなかった場合のフォールバック
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const meta = authUser.user_metadata || {};
+          const { data: newProfile, error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: userId,
+              email: authUser.email || '',
+              first_name: meta.first_name || null,
+              last_name: meta.last_name || null,
+              phone_number: meta.phone_number || null,
+              postal_code: meta.postal_code || null,
+              prefecture: meta.prefecture || null,
+              city: meta.city || null,
+              address_line: meta.address_line || null,
+              building: meta.building || null,
+              role: 'Members',
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            logger.error('Failed to create user profile:', insertError);
+          } else {
+            setProfile(newProfile);
+          }
+        }
+      }
     } catch (error) {
       logger.error('Error loading user profile:', error);
     } finally {
@@ -93,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           first_name: userData.firstName,
           last_name: userData.lastName,
@@ -131,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isMember = profile?.role === 'Members';
 
   const hasRole = (roles: UserRole[]) => {
-    return profile ? roles.includes(profile.role) : false;
+    return profile ? roles.includes(profile.role as UserRole) : false;
   };
 
   const value = {

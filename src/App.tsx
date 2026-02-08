@@ -9,6 +9,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
@@ -54,6 +55,8 @@ const RoutePage = lazy(() => import('./pages/RoutePage'));
 
 // Admin
 const AdminPage = lazy(() => import('./pages/AdminPage'));
+const ContentManagementPage = lazy(() => import('./pages/ContentManagementPage'));
+const NewsManagementPage = lazy(() => import('./pages/NewsManagementPage'));
 const SystemSettingsPage = lazy(() => import('./pages/SystemSettingsPage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 const VehicleManagementPage = lazy(() => import('./pages/VehicleManagementPage'));
@@ -88,6 +91,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/vehicles" element={<VehiclesPage />} />
@@ -144,9 +148,14 @@ function App() {
             <Route path="/admin/questions" element={<QuestionManagementPage />} />
             <Route path="/admin/contacts" element={<ContactManagementPage />} />
             <Route path="/admin/categories" element={<CategoryManagementPage />} />
+            <Route path="/admin/content" element={<ContentManagementPage />} />
+            <Route path="/admin/news" element={<NewsManagementPage />} />
             <Route path="/admin/settings" element={<SystemSettingsPage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/staff/contacts" element={<ContactManagementPage />} />
+            <Route path="/staff/stories" element={<StoryManagementPage />} />
+            <Route path="/staff/reviews" element={<ReviewManagementPage />} />
+            <Route path="/staff/questions" element={<QuestionManagementPage />} />
             <Route path="/staff/checkout/:id" element={<StaffCheckoutPage />} />
             <Route path="/staff/return/:id" element={<StaffReturnPage />} />
             <Route path="/partner/dashboard" element={<PartnerDashboardPage />} />

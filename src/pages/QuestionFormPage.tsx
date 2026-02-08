@@ -3,17 +3,22 @@ import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
-import { supabase } from '../lib/supabase';
-import { useQuery } from '../lib/data-access';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { useQuery, useRepository, QuestionRepository } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 export default function QuestionFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const questionRepo = useRepository(QuestionRepository);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !loading);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -24,16 +29,11 @@ export default function QuestionFormPage() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const { loading: _loadingQuestion } = useQuery<any>(
     async () => {
-      const { data, error } = await (supabase
-        .from('questions'))
-        .select('*')
-        .eq('id', id!)
-        .eq('author_id', user!.id)
-        .maybeSingle();
+      const result = await questionRepo.findById(id!);
+      if (!result.success) throw result.error;
+      const data = result.data;
 
-      if (error) throw error;
-
-      if (data) {
+      if (data && data.author_id === user!.id) {
         setTitle(data.title);
         setContent(data.content);
         setCategory(data.category || '');
@@ -69,34 +69,20 @@ export default function QuestionFormPage() {
       };
 
       if (id) {
-        const { error } = await (supabase
-
-          .from('questions'))
-
-          .update(questionData)
-          .eq('id', id!);
-
-        if (error) throw error;
+        const result = await questionRepo.update(id, questionData);
+        if (!result.success) throw result.error;
 
         toast.success('質問を更新しました');
         navigate(`/portal/questions/${id}`);
       } else {
-        const { data, error } = await (supabase
-
-          .from('questions'))
-
-          .insert(questionData)
-          .select()
-          .single();
-
-        if (error) throw error;
+        const result = await questionRepo.create(questionData);
+        if (!result.success) throw result.error;
 
         toast.success('質問を投稿しました');
-        navigate(`/portal/questions/${data.id}`);
+        navigate(`/portal/questions/${result.data.id}`);
       }
     } catch (error) {
-      logger.error('Error saving question:', error);
-      toast.error('質問の保存に失敗しました');
+      handleError(error, '質問の保存に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -105,9 +91,7 @@ export default function QuestionFormPage() {
   if (authLoading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -132,7 +116,7 @@ export default function QuestionFormPage() {
             {id ? '質問を編集' : '質問を投稿'}
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="space-y-6">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                 タイトル <span className="text-red-600">*</span>

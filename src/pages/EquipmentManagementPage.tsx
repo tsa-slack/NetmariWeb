@@ -2,22 +2,11 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
-import {
-  Package,
-  Plus,
-  Edit,
-  Trash2,
-  Filter,
-  Search,
-  DollarSign,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { EquipmentRepository, useRepository, useQuery } from '../lib/data-access';
+import { Package, Plus, Edit, Trash2, Filter, Search, DollarSign, Eye, EyeOff } from 'lucide-react';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Equipment {
   id: string;
@@ -35,6 +24,7 @@ interface Equipment {
 export default function EquipmentManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
+  const equipmentRepo = useRepository(EquipmentRepository);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,42 +35,21 @@ export default function EquipmentManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: equipment, loading: loadingEquipment, refetch } = useQuery<any[]>(
     async () => {
-      let query = supabase
-        .from('equipment')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (filter === 'published') {
-        query = query.eq('is_published', true);
-      } else if (filter === 'unpublished') {
-        query = query.eq('is_published', false);
-      }
-
-      if (categoryFilter !== 'all') {
-        query = query.eq('category', categoryFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return equipmentRepo.findAllFiltered(
+        filter === 'all' ? undefined : filter,
+        categoryFilter === 'all' ? undefined : categoryFilter
+      );
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
 
   const togglePublish = async (equipmentId: string, currentStatus: boolean) => {
     try {
-      const { error } = await (supabase
-
-        .from('equipment'))
-
-        .update({ is_published: !currentStatus })
-        .eq('id', equipmentId);
-
-      if (error) throw error;
+      const result = await equipmentRepo.update(equipmentId, { status: currentStatus ? 'inactive' : 'active' });
+      if (!result.success) throw result.error;
       refetch();
     } catch (error) {
-      logger.error('Error updating equipment:', error);
-      toast.error('公開状態の変更に失敗しました');
+      handleError(error, '公開状態の変更に失敗しました');
     }
   };
 
@@ -88,18 +57,13 @@ export default function EquipmentManagementPage() {
     if (!selectedEquipment) return;
 
     try {
-      const { error } = await supabase
-        .from('equipment')
-        .delete()
-        .eq('id', selectedEquipment.id);
-
-      if (error) throw error;
+      const result = await equipmentRepo.delete(selectedEquipment.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedEquipment(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting equipment:', error);
-      toast.error('ギヤの削除に失敗しました');
+      handleError(error, 'ギヤの削除に失敗しました');
     }
   };
 
@@ -134,11 +98,11 @@ export default function EquipmentManagementPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center space-x-3">
             <Package className="h-8 w-8 text-blue-600" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">ギヤ管理</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">ギヤ管理</h1>
               <p className="text-gray-600 mt-1">レンタルギヤの在庫と価格を管理</p>
             </div>
           </div>
@@ -168,7 +132,7 @@ export default function EquipmentManagementPage() {
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as 'all' | 'published' | 'unpublished')}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
               >
                 <option value="all">すべて</option>

@@ -55,4 +55,29 @@ export class AnnouncementRepository extends BaseRepository<'announcements'> {
 
         return { success: true, data: sorted };
     }
+
+    /**
+     * 公開済みお知らせを著者情報付きで取得
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async findPublishedWithAuthor(): Promise<Result<any[]>> {
+        try {
+            const { data, error } = await this.client
+                .from(this.table)
+                .select(`
+                    *,
+                    author:users!announcements_author_id_fkey(first_name, last_name)
+                `)
+                .eq('published', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return { success: true, data: data || [] } as const;
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error : new Error('Failed to fetch announcements')
+            } as const;
+        }
+    }
 }

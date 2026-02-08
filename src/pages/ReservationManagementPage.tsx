@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
+
 import { Calendar, User, Car, Package, TrendingUp, DollarSign, Clock, MapPin } from 'lucide-react';
-import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { useQuery, useRepository, ReservationRepository } from '../lib/data-access';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ReservationManagementPage() {
   const { user, loading: authLoading, isAdmin, isStaff } = useAuth();
+  const reservationRepo = useRepository(ReservationRepository);
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [updateStatusModal, setUpdateStatusModal] = useState<{
     id: string;
@@ -22,36 +22,7 @@ export default function ReservationManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: reservations, loading, refetch } = useQuery<any[]>(
     async () => {
-      const { data, error } = await (supabase
-        .from('reservations'))
-        .select(`
-          *,
-          user:users(email, first_name, last_name),
-          rental_vehicle:rental_vehicles(
-            price_per_day,
-            location,
-            vehicle:vehicles(name, type)
-          ),
-          reservation_equipment(
-            id,
-            quantity,
-            days,
-            price_per_day,
-            subtotal,
-            equipment(name, category)
-          ),
-          reservation_activities(
-            id,
-            date,
-            participants,
-            price,
-            activity:activities(name, duration)
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return reservationRepo.findAllWithDetails();
     },
     { enabled: true }
   );
@@ -60,21 +31,14 @@ export default function ReservationManagementPage() {
     if (!updateStatusModal) return;
 
     try {
-      const { error } = await (supabase
-
-        .from('reservations'))
-
-        .update({ status: newStatus })
-        .eq('id', updateStatusModal.id);
-
-      if (error) throw error;
+      const result = await reservationRepo.update(updateStatusModal.id, { status: newStatus });
+      if (!result.success) throw result.error;
 
       setUpdateStatusModal(null);
       setNewStatus('');
       refetch();
     } catch (error) {
-      logger.error('Error updating status:', error);
-      toast.error('ステータスの更新に失敗しました');
+      handleError(error, 'ステータスの更新に失敗しました');
     }
   };
 
@@ -88,6 +52,8 @@ export default function ReservationManagementPage() {
         return 'bg-green-100 text-green-800';
       case 'Cancelled':
         return 'bg-red-100 text-red-800';
+      case 'InProgress':
+        return 'bg-indigo-100 text-indigo-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -103,6 +69,8 @@ export default function ReservationManagementPage() {
         return '完了';
       case 'Cancelled':
         return 'キャンセル';
+      case 'InProgress':
+        return '貸出中';
       default:
         return status;
     }
@@ -115,9 +83,7 @@ export default function ReservationManagementPage() {
   if (authLoading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -130,7 +96,7 @@ export default function ReservationManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Calendar className="h-10 w-10 mr-3 text-blue-600" />
             予約管理
           </h1>
@@ -147,6 +113,7 @@ export default function ReservationManagementPage() {
             <option value="All">すべて</option>
             <option value="Pending">保留中</option>
             <option value="Confirmed">確定</option>
+            <option value="InProgress">貸出中</option>
             <option value="Completed">完了</option>
             <option value="Cancelled">キャンセル</option>
           </select>
@@ -156,9 +123,7 @@ export default function ReservationManagementPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredReservations.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -381,16 +346,68 @@ export default function ReservationManagementPage() {
         )}
       </div>
 
-      <ConfirmModal
-        isOpen={updateStatusModal !== null}
-        onClose={() => {
-          setUpdateStatusModal(null);
-          setNewStatus('');
-        }}
-        onConfirm={handleUpdateStatus}
-        title="予約ステータスを変更"
-        message="このキャンセルを承認してもよろしいですか？"
-      />
+      {updateStatusModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => {
+                setUpdateStatusModal(null);
+                setNewStatus('');
+              }}
+            />
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">予約ステータスを変更</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                現在のステータス:{' '}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(updateStatusModal.currentStatus)}`}>
+                  {getStatusLabel(updateStatusModal.currentStatus)}
+                </span>
+              </p>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  新しいステータス
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+                >
+                  <option value="Pending">保留中</option>
+                  <option value="Confirmed">確定</option>
+                  <option value="InProgress">貸出中</option>
+                  <option value="Completed">完了</option>
+                  <option value="Cancelled">キャンセル</option>
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setUpdateStatusModal(null);
+                    setNewStatus('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                >
+                  戻る
+                </button>
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={newStatus === updateStatusModal.currentStatus}
+                  className={`px-4 py-2 rounded-lg text-white transition ${
+                    newStatus === updateStatusModal.currentStatus
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : newStatus === 'Cancelled'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  ステータスを更新
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

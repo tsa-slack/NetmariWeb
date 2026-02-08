@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { Review } from './types';
-import { logger } from '../../lib/logger';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { handleError } from '../../lib/handleError';
 
 interface ReviewsTabProps {
   myReviews: Review[] | undefined;
@@ -24,8 +25,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
       if (error) throw error;
       toast.success(!currentStatus ? 'レビューを公開しました' : 'レビューを非公開にしました');
     } catch (error) {
-      logger.error('Error toggling review publish status:', error);
-      toast.error('公開状態の変更に失敗しました');
+      handleError(error, '公開状態の変更に失敗しました');
     }
   };
 
@@ -36,8 +36,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
       if (error) throw error;
       toast.success('レビューを削除しました');
     } catch (error) {
-      logger.error('Error deleting review:', error);
-      toast.error('レビューの削除に失敗しました');
+      handleError(error, 'レビューの削除に失敗しました');
     } finally {
       setShowDeleteReviewModal(false);
       setReviewToDelete(null);
@@ -52,9 +51,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
         </div>
 
         {reviewsLoading ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : (myReviews?.length || 0) === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Star className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -78,7 +75,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
                           <Star
                             key={i}
                             className={`h-5 w-5 ${
-                              i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                              i < (review.rating ?? 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
                             }`}
                           />
                         ))}
@@ -97,7 +94,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
                       <p className="text-sm text-gray-500">投稿先: {review.partner_name}</p>
                     )}
                     <p className="text-xs text-gray-400 mt-2">
-                      投稿日: {new Date(review.created_at).toLocaleDateString('ja-JP')}
+                      投稿日: {review.created_at ? new Date(review.created_at).toLocaleDateString('ja-JP') : ''}
                     </p>
                   </div>
                   <div className="flex flex-col space-y-2 ml-4">
@@ -109,7 +106,7 @@ export default function ReviewsTab({ myReviews, reviewsLoading }: ReviewsTabProp
                       <Edit className="h-5 w-5" />
                     </Link>
                     <button
-                      onClick={() => handleToggleReviewPublish(review.id, review.is_published)}
+                      onClick={() => handleToggleReviewPublish(review.id, review.is_published ?? false)}
                       className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
                       title={review.is_published ? '非公開にする' : '公開する'}
                     >

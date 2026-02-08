@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
 import {
   MapPin,
   Plus,
@@ -15,13 +14,13 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import type { Database } from '../lib/database.types';
-import { toast } from 'sonner';
 import {
   PartnerRepository,
   useQuery,
   useRepository,
 } from '../lib/data-access';
-import { logger } from '../lib/logger';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 
@@ -54,18 +53,13 @@ export default function PartnerManagementPage() {
     if (!selectedPartner) return;
 
     try {
-      const { error } = await supabase
-        .from('partners')
-        .delete()
-        .eq('id', selectedPartner.id);
-
-      if (error) throw error;
+      const result = await partnerRepo.delete(selectedPartner.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedPartner(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting partner:', error);
-      toast.error('協力店の削除に失敗しました');
+      handleError(error, '協力店の削除に失敗しました');
     }
   };
 
@@ -89,9 +83,7 @@ export default function PartnerManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -103,9 +95,9 @@ export default function PartnerManagementPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
               <MapPin className="h-10 w-10 mr-3 text-green-600" />
               協力店管理
             </h1>
@@ -159,9 +151,7 @@ export default function PartnerManagementPage() {
         </div>
 
         {loadingPartners ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredPartners.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <MapPin className="h-16 w-16 text-gray-300 mx-auto mb-4" />

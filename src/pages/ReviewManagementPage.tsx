@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../lib/supabase';
-import { Star, Eye, EyeOff, Trash2, Filter, Search, Calendar } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
-import { useQuery } from '../lib/data-access';
-import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import { ReviewRepository, useRepository, useQuery } from '../lib/data-access';
+import { Star, Eye, EyeOff, Trash2, Filter, Search, Calendar } from 'lucide-react';
+import { handleError } from '../lib/handleError';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface Review {
   id: string;
@@ -26,6 +25,7 @@ interface Review {
 
 export default function ReviewManagementPage() {
   const { user, loading, isAdmin, isStaff } = useAuth();
+  const reviewRepo = useRepository(ReviewRepository);
   const [filter, setFilter] = useState<'all' | 'published' | 'unpublished'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -35,48 +35,18 @@ export default function ReviewManagementPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: reviews, loading: loadingReviews, refetch } = useQuery<any[]>(
     async () => {
-      let query = supabase
-        .from('reviews')
-        .select(`
-          id,
-          target_type,
-          target_id,
-          rating,
-          title,
-          content,
-          is_published,
-          created_at,
-          author:users!reviews_author_id_fkey(full_name, email)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (filter === 'published') {
-        query = query.eq('is_published', true);
-      } else if (filter === 'unpublished') {
-        query = query.eq('is_published', false);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data: data || [] };
+      return reviewRepo.findAllForAdmin(filter === 'all' ? undefined : filter);
     },
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
 
   const togglePublish = async (review: Review) => {
     try {
-      const { error } = await (supabase
-
-        .from('reviews'))
-
-        .update({ is_published: !review.is_published })
-        .eq('id', review.id);
-
-      if (error) throw error;
+      const result = await reviewRepo.update(review.id, { is_published: !review.is_published });
+      if (!result.success) throw result.error;
       refetch();
     } catch (error) {
-      logger.error('Error toggling review:', error);
-      toast.error('公開状態の変更に失敗しました');
+      handleError(error, '公開状態の変更に失敗しました');
     }
   };
 
@@ -84,18 +54,13 @@ export default function ReviewManagementPage() {
     if (!selectedReview) return;
 
     try {
-      const { error } = await supabase
-        .from('reviews')
-        .delete()
-        .eq('id', selectedReview.id);
-
-      if (error) throw error;
+      const result = await reviewRepo.delete(selectedReview.id);
+      if (!result.success) throw result.error;
       setDeleteModalOpen(false);
       setSelectedReview(null);
       refetch();
     } catch (error) {
-      logger.error('Error deleting review:', error);
-      toast.error('レビューの削除に失敗しました');
+      handleError(error, 'レビューの削除に失敗しました');
     }
   };
 
@@ -114,9 +79,7 @@ export default function ReviewManagementPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -129,7 +92,7 @@ export default function ReviewManagementPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Star className="h-10 w-10 mr-3 text-yellow-600" />
             レビュー管理
           </h1>
@@ -145,7 +108,7 @@ export default function ReviewManagementPage() {
               </label>
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => setFilter(e.target.value as 'all' | 'published' | 'unpublished')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">すべて</option>
@@ -171,9 +134,7 @@ export default function ReviewManagementPage() {
         </div>
 
         {loadingReviews ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingSpinner size="sm" fullPage={false} />
         ) : filteredReviews.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <Star className="h-16 w-16 text-gray-300 mx-auto mb-4" />

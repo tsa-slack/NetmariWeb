@@ -16,7 +16,7 @@ export class ReviewRepository extends BaseRepository<'reviews'> {
      */
     async findByUser(userId: string): Promise<Result<Row<'reviews'>[]>> {
         const query = new QueryBuilder<Row<'reviews'>>(this.table)
-            .whereEqual('user_id', userId)
+            .whereEqual('author_id', userId)
             .orderBy('created_at', 'desc');
 
         return query.execute();
@@ -53,7 +53,7 @@ export class ReviewRepository extends BaseRepository<'reviews'> {
     async findByTargetWithAuthor(
         targetType: string,
         targetId: string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<Result<any[]>> {
         try {
             const { data, error } = await supabase
@@ -67,6 +67,38 @@ export class ReviewRepository extends BaseRepository<'reviews'> {
                 .eq('is_published', true)
                 .order('created_at', { ascending: false });
 
+            if (error) throw error;
+            return { success: true, data: data || [] } as const;
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error : new Error('Failed to fetch reviews')
+            } as const;
+        }
+    }
+
+    /**
+     * 管理用：著者情報付きでレビュー一覧を取得（フィルタ対応）
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async findAllForAdmin(filter?: 'all' | 'published' | 'unpublished'): Promise<Result<any[]>> {
+        try {
+            let query = this.client
+                .from(this.table)
+                .select(`
+                    id, target_type, target_id, rating, title, content,
+                    is_published, created_at,
+                    author:users!reviews_author_id_fkey(full_name, email)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (filter === 'published') {
+                query = query.eq('is_published', true);
+            } else if (filter === 'unpublished') {
+                query = query.eq('is_published', false);
+            }
+
+            const { data, error } = await query;
             if (error) throw error;
             return { success: true, data: data || [] } as const;
         } catch (error) {

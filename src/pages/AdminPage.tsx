@@ -7,6 +7,7 @@ import {
   MapPin,
   BookOpen,
 } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import {
   UserRepository,
   PartnerRepository,
@@ -49,9 +50,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }

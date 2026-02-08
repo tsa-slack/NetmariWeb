@@ -5,7 +5,6 @@ import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Heart, Eye, MapPin, Calendar, User, Send, MessageCircle, Edit, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import {
   StoryRepository,
   StoryQuestionRepository,
@@ -14,6 +13,8 @@ import {
   useRepository,
 } from '../lib/data-access';
 import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 
 export default function StoryDetailPage() {
@@ -79,7 +80,7 @@ export default function StoryDetailPage() {
     }
 
     try {
-      await supabase.rpc('increment_story_views' as never, { story_id: id } as Record<string, unknown>);
+      await supabase.rpc('increment_story_views' as never, { story_id: id } as never);
       localStorage.setItem(viewedKey, now.toString());
     } catch (error) {
       logger.error('Error incrementing views:', error);
@@ -132,8 +133,7 @@ export default function StoryDetailPage() {
       setNewQuestion('');
       refetchQuestions();
     } catch (error) {
-      logger.error('Error submitting question:', error);
-      toast.error('質問の投稿に失敗しました');
+      handleError(error, '質問の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -158,8 +158,7 @@ export default function StoryDetailPage() {
       setNewAnswer({ ...newAnswer, [questionId]: '' });
       refetchQuestions();
     } catch (error) {
-      logger.error('Error submitting answer:', error);
-      toast.error('回答の投稿に失敗しました');
+      handleError(error, '回答の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -179,17 +178,14 @@ export default function StoryDetailPage() {
       if (error) throw error;
       navigate('/portal/stories');
     } catch (error) {
-      logger.error('Error deleting story:', error);
-      toast.error('投稿の削除に失敗しました');
+      handleError(error, '投稿の削除に失敗しました');
     }
   };
 
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -224,7 +220,7 @@ export default function StoryDetailPage() {
 
           <div className="p-8">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-4xl font-bold text-gray-800 flex-1">
+              <h1 className="text-2xl md:text-4xl font-bold text-gray-800 flex-1">
                 {story.title}
               </h1>
               {isAuthor && (

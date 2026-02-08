@@ -47,8 +47,7 @@ export type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like'
 /**
  * フィルター条件
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface FilterCondition<T = any> {
+export interface FilterCondition<T = unknown> {
     field: string;
     operator: FilterOperator;
     value: T;
@@ -61,8 +60,7 @@ export class DataAccessError extends Error {
     constructor(
         message: string,
         public code?: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        public details?: any
+        public details?: unknown
     ) {
         super(message);
         this.name = 'DataAccessError';

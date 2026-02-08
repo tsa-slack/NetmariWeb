@@ -12,7 +12,8 @@ import {
   useQuery,
   useRepository,
 } from '../lib/data-access';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -66,8 +67,7 @@ export default function EventDetailPage() {
       refetchParticipants();
       toast.success('イベントに参加登録しました');
     } catch (error) {
-      logger.error('Error registering for event:', error);
-      toast.error('参加登録に失敗しました');
+      handleError(error, '参加登録に失敗しました');
     }
   };
 
@@ -84,8 +84,7 @@ export default function EventDetailPage() {
       refetchParticipants();
       toast.success('参加をキャンセルしました');
     } catch (error) {
-      logger.error('Error cancelling participation:', error);
-      toast.error('キャンセルに失敗しました');
+      handleError(error, 'キャンセルに失敗しました');
     }
   };
 
@@ -101,17 +100,14 @@ export default function EventDetailPage() {
       toast.success('イベントを削除しました');
       navigate('/portal/events');
     } catch (error) {
-      logger.error('Error deleting event:', error);
-      toast.error('イベントの削除に失敗しました');
+      handleError(error, 'イベントの削除に失敗しました');
     }
   };
 
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -173,7 +169,7 @@ export default function EventDetailPage() {
                     {event.location_type === 'Online' ? 'オンライン' : 'オフライン'}
                   </span>
                 </div>
-                <h1 className="text-4xl font-bold text-gray-800 mb-4">{event.title}</h1>
+                <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">{event.title}</h1>
                 <p className="text-gray-600">
                   主催者: {event.organizer?.first_name} {event.organizer?.last_name}
                 </p>

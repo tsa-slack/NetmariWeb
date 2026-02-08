@@ -47,6 +47,14 @@ export function useQuery<T>(
     const isMounted = useRef(true);
     const hasExecuted = useRef(false);
 
+    // queryFn と callbacks を ref に保持して依存配列から除外
+    const queryFnRef = useRef(queryFn);
+    queryFnRef.current = queryFn;
+    const onSuccessRef = useRef(onSuccess);
+    onSuccessRef.current = onSuccess;
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+
     const execute = useCallback(async () => {
         if (!enabled) return;
 
@@ -54,29 +62,29 @@ export function useQuery<T>(
         setError(null);
 
         try {
-            const result = await queryFn();
+            const result = await queryFnRef.current();
 
             if (!isMounted.current) return;
 
             if (result.success) {
                 setData(result.data);
-                onSuccess?.(result.data);
+                onSuccessRef.current?.(result.data);
             } else {
                 setError(result.error);
-                onError?.(result.error);
+                onErrorRef.current?.(result.error);
             }
         } catch (err) {
             if (!isMounted.current) return;
 
             const error = err instanceof Error ? err : new Error('Unknown error');
             setError(error);
-            onError?.(error);
+            onErrorRef.current?.(error);
         } finally {
             if (isMounted.current) {
                 setLoading(false);
             }
         }
-    }, [queryFn, enabled, onSuccess, onError]);
+    }, [enabled]);
 
     useEffect(() => {
         isMounted.current = true;
@@ -102,3 +110,4 @@ export function useQuery<T>(
         refetch,
     };
 }
+

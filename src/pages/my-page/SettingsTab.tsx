@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import ConfirmModal from '../../components/ConfirmModal';
 import type { Database } from '../../lib/database.types';
 import type { UserProfile } from './types';
-import { logger } from '../../lib/logger';
+import { handleError } from '../../lib/handleError';
 
 type UserUpdate = Database['public']['Tables']['users']['Update'];
 
@@ -34,8 +34,7 @@ export default function SettingsTab({ userSettings, setUserSettings, settingsLoa
       if (error) throw error;
       setUserSettings(prev => prev ? { ...prev, [field]: value } : null);
     } catch (error) {
-      logger.error('Error updating notification setting:', error);
-      toast.error('設定の更新に失敗しました');
+      handleError(error, '設定の更新に失敗しました');
     } finally {
       setSavingSettings(false);
     }
@@ -48,8 +47,7 @@ export default function SettingsTab({ userSettings, setUserSettings, settingsLoa
       if (error) throw error;
       setUserSettings(prev => prev ? { ...prev, [field]: value } : null);
     } catch (error) {
-      logger.error('Error updating privacy setting:', error);
-      toast.error('設定の更新に失敗しました');
+      handleError(error, '設定の更新に失敗しました');
     } finally {
       setSavingSettings(false);
     }
@@ -58,13 +56,12 @@ export default function SettingsTab({ userSettings, setUserSettings, settingsLoa
   const handleSuspendAccount = async () => {
     try {
       setSavingSettings(true);
-      const { error } = await supabase.rpc('suspend_account', { reason: suspendReason || null });
+      const { error } = await supabase.rpc('suspend_account' as never, { reason: suspendReason || null } as never);
       if (error) throw error;
       toast.warning('アカウントを一時停止しました。再度ログインすると、アカウントを再開できます。');
       window.location.href = '/login';
     } catch (error) {
-      logger.error('Error suspending account:', error);
-      toast.error('アカウントの一時停止に失敗しました');
+      handleError(error, 'アカウントの一時停止に失敗しました');
     } finally {
       setSavingSettings(false);
       setShowSuspendModal(false);

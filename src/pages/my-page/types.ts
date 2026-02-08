@@ -7,37 +7,41 @@ export type Review = Database['public']['Tables']['reviews']['Row'] & {
 export type UserProfile = Database['public']['Tables']['users']['Row'];
 export type Reservation = Database['public']['Tables']['reservations']['Row'] & {
     rental_vehicle?: {
-        location?: string;
+        location?: string | null;
         vehicle?: {
             name?: string;
-            manufacturer?: string;
-            images?: string[];
-        };
-    };
+            manufacturer?: string | null;
+            images?: Json;
+        } | null;
+    } | null;
 };
 export type PartnerFavorite = Database['public']['Tables']['partner_favorites']['Row'] & {
     partner?: {
         name?: string;
-        description?: string;
-        address?: string;
+        description?: string | null;
+        address?: string | null;
         images?: Json;
-        type?: string;
-    };
+        type?: string | null;
+    } | null;
 };
 
 export type VehicleFavorite = {
     id: string;
-    user_id: string;
-    vehicle_id: string;
-    created_at: string;
-    vehicle?: {
-        name?: string;
-        manufacturer?: string;
-        type?: string;
-        images?: Json;
-        price?: number;
-        status?: string;
-    };
+    user_id: string | null;
+    rental_vehicle_id: string | null;
+    created_at: string | null;
+    rental_vehicle?: {
+        id: string;
+        location?: string | null;
+        vehicle?: {
+            name?: string;
+            manufacturer?: string | null;
+            type?: string | null;
+            images?: Json;
+            price?: number | null;
+            status?: string | null;
+        } | null;
+    } | null;
 };
 
 export type StoryFavorite = {

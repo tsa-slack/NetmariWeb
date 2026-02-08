@@ -17,6 +17,7 @@ import type {
   Review, Reservation, PartnerFavorite, VehicleFavorite, StoryFavorite,
   UserRoute, UserProfile, RankProgress,
 } from './my-page/types';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface RankSettingsJson {
   ranks: Record<string, {
@@ -157,7 +158,7 @@ export default function MyPage() {
 
       if (!settings || !settings.rank_settings) return { success: true, data: null };
 
-      const rankSettings = settings.rank_settings as RankSettingsJson;
+      const rankSettings = settings.rank_settings as unknown as RankSettingsJson;
       const currentRank = profile?.rank || 'Bronze';
 
       const { data: totals } = await supabase.rpc('calculate_total_spent', { user_uuid: user!.id });
@@ -187,7 +188,7 @@ export default function MyPage() {
     async () => {
       const [partnerRes, vehicleRes, storyRes] = await Promise.all([
         supabase.from('partner_favorites').select(`*, partner:partners(name, description, address, images, type)`).eq('user_id', user!.id).order('created_at', { ascending: false }),
-        supabase.from('vehicle_favorites').select(`*, vehicle:vehicles(name, manufacturer, type, images, price, status)`).eq('user_id', user!.id).order('created_at', { ascending: false }),
+        supabase.from('vehicle_favorites').select(`*, rental_vehicle:rental_vehicles(*, vehicle:vehicles(name, manufacturer, type, images, price, status))`).eq('user_id', user!.id).order('created_at', { ascending: false }),
         supabase.from('story_favorites').select(`*, story:stories(title, excerpt, cover_image, author_id)`).eq('user_id', user!.id).order('created_at', { ascending: false }),
       ]);
 
@@ -195,9 +196,9 @@ export default function MyPage() {
       if (vehicleRes.error) throw vehicleRes.error;
       if (storyRes.error) throw storyRes.error;
 
-      setMyPartnerFavorites(partnerRes.data || []);
-      setMyVehicleFavorites(vehicleRes.data as VehicleFavorite[] || []);
-      setMyStoryFavorites(storyRes.data as StoryFavorite[] || []);
+      setMyPartnerFavorites((partnerRes.data || []) as unknown as PartnerFavorite[]);
+      setMyVehicleFavorites((vehicleRes.data || []) as unknown as VehicleFavorite[]);
+      setMyStoryFavorites((storyRes.data || []) as unknown as StoryFavorite[]);
       return { success: true, data: null };
     },
     { enabled: !!user?.id }
@@ -230,9 +231,7 @@ export default function MyPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -257,7 +256,7 @@ export default function MyPage() {
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">マイページ</h1>
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">マイページ</h1>
           <p className="text-gray-600">ようこそ、{profile?.first_name}さん</p>
         </div>
 
@@ -312,7 +311,7 @@ export default function MyPage() {
         </div>
 
         {/* Tab Content */}
-        <Suspense fallback={<div className="text-center py-12"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+        <Suspense fallback={<LoadingSpinner size="sm" fullPage={false} />}>
           {activeTab === 'profile' && <ProfileTab rankProgress={rankProgress} />}
           {activeTab === 'favorites' && (
             <FavoritesTab

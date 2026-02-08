@@ -8,7 +8,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { PartnerRepository, ReviewRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 type Partner = Database['public']['Tables']['partners']['Row'];
 type Review = Database['public']['Tables']['reviews']['Row'] & {
@@ -96,8 +97,7 @@ export default function PartnerDetailPage() {
         window.location.reload(); // 簡易的な再読み込み
       }
     } catch (error) {
-      logger.error('Error toggling favorite:', error);
-      toast.error('お気に入りの更新に失敗しました');
+      handleError(error, 'お気に入りの更新に失敗しました');
     }
   };
 
@@ -113,8 +113,7 @@ export default function PartnerDetailPage() {
       toast.success('協力店を削除しました');
       window.location.href = '/partners';
     } catch (error) {
-      logger.error('Error deleting partner:', error);
-      toast.error('協力店の削除に失敗しました');
+      handleError(error, '協力店の削除に失敗しました');
     }
   };
 
@@ -140,9 +139,7 @@ export default function PartnerDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -175,19 +172,19 @@ export default function PartnerDetailPage() {
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {images.length > 0 ? (
             <div
-              className="h-96 bg-cover bg-center"
+              className="h-48 sm:h-64 md:h-96 bg-cover bg-center"
               style={{ backgroundImage: `url(${images[0]})` }}
             />
           ) : (
-            <div className="h-96 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+            <div className="h-48 sm:h-64 md:h-96 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
               <ImageIcon className="h-32 w-32 text-white opacity-50" />
             </div>
           )}
 
-          <div className="p-8">
-            <div className="flex items-start justify-between mb-6">
+          <div className="p-4 md:p-8">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div className="flex-1">
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">{partner.name}</h1>
+                <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">{partner.name}</h1>
                 {partner.type && (
                   <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-full mb-4">
                     {partner.type === 'RVPark' ? 'RVパーク' :
@@ -347,7 +344,7 @@ export default function PartnerDetailPage() {
             {images.length > 1 && (
               <div className="mb-8">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">ギャラリー</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {images.slice(1).map((image: any, index: number) => (
                     <div
@@ -389,7 +386,7 @@ export default function PartnerDetailPage() {
                                 <Star
                                   key={i}
                                   className={`h-5 w-5 ${
-                                    i < review.rating
+                                    i < (review.rating ?? 0)
                                       ? 'text-yellow-400 fill-current'
                                       : 'text-gray-300'
                                   }`}
@@ -400,7 +397,7 @@ export default function PartnerDetailPage() {
                               {review.author?.first_name} {review.author?.last_name}
                             </span>
                             <span className="ml-3 text-sm text-gray-500">
-                              {new Date(review.created_at).toLocaleDateString('ja-JP')}
+                              {review.created_at ? new Date(review.created_at).toLocaleDateString('ja-JP') : ''}
                             </span>
                           </div>
                           {review.title && (

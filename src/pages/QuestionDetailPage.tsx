@@ -9,6 +9,8 @@ import type { Database } from '../lib/database.types';
 import { QuestionRepository, AnswerRepository, useQuery, useRepository } from '../lib/data-access';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 type Question = Database['public']['Tables']['questions']['Row'] & {
   author?: {
@@ -53,7 +55,7 @@ export default function QuestionDetailPage() {
     const incrementViews = async () => {
       if (!id) return;
       try {
-        await supabase.rpc('increment_question_views' as never, { question_id: id } as Record<string, unknown>);
+        await supabase.rpc('increment_question_views' as never, { question_id: id } as never);
       } catch (error) {
         logger.error('Error incrementing views:', error);
       }
@@ -90,8 +92,7 @@ export default function QuestionDetailPage() {
       refetchAnswers(); // useQueryのrefetchを使用
       toast.success('回答を投稿しました');
     } catch (error) {
-      logger.error('Error submitting answer:', error);
-      toast.error('回答の投稿に失敗しました');
+      handleError(error, '回答の投稿に失敗しました');
     } finally {
       setSubmitting(false);
     }
@@ -109,8 +110,7 @@ export default function QuestionDetailPage() {
       refetchQuestion(); // useQueryのrefetchを使用
       toast.success('質問を解決済みにしました');
     } catch (error) {
-      logger.error('Error marking as resolved:', error);
-      toast.error('更新に失敗しました');
+      handleError(error, '更新に失敗しました');
     }
   };
 
@@ -131,8 +131,7 @@ export default function QuestionDetailPage() {
       refetchAnswers(); // useQueryのrefetchを使用
       handleMarkAsResolved();
     } catch (error) {
-      logger.error('Error accepting answer:', error);
-      toast.error('ベストアンサーの設定に失敗しました');
+      handleError(error, 'ベストアンサーの設定に失敗しました');
     }
   };
 
@@ -148,8 +147,7 @@ export default function QuestionDetailPage() {
       toast.success('質問を削除しました');
       navigate('/portal/questions');
     } catch (error) {
-      logger.error('Error deleting question:', error);
-      toast.error('質問の削除に失敗しました');
+      handleError(error, '質問の削除に失敗しました');
     }
   };
 
@@ -175,9 +173,7 @@ export default function QuestionDetailPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -222,7 +218,7 @@ export default function QuestionDetailPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-4xl font-bold text-gray-800 mb-4">{question.title}</h1>
+              <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">{question.title}</h1>
               <div className="flex items-center space-x-4 text-sm text-gray-600 mb-6">
                 <span>
                   投稿者: {question.author?.first_name} {question.author?.last_name}
@@ -231,7 +227,7 @@ export default function QuestionDetailPage() {
                   <Eye className="h-4 w-4 mr-1" />
                   {question.views}回閲覧
                 </div>
-                <span>{new Date(question.created_at).toLocaleDateString('ja-JP')}</span>
+                <span>{question.created_at ? new Date(question.created_at).toLocaleDateString('ja-JP') : ''}</span>
               </div>
             </div>
 
@@ -306,7 +302,7 @@ export default function QuestionDetailPage() {
                           {answer.author?.first_name} {answer.author?.last_name}
                         </span>
                         <span>
-                          {new Date(answer.created_at).toLocaleDateString('ja-JP')}
+                          {answer.created_at ? new Date(answer.created_at).toLocaleDateString('ja-JP') : ''}
                         </span>
                         <div className="flex items-center">
                           <ThumbsUp className="h-4 w-4 mr-1" />

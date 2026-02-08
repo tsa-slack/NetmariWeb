@@ -75,4 +75,30 @@ export class UserRepository extends BaseRepository<'users'> {
     ): Promise<Result<Row<'users'>>> {
         return this.update(userId, profileData);
     }
+
+    /**
+     * 管理用：ロールフィルタ付きでユーザー一覧を取得
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async findAllFiltered(roleFilter?: string): Promise<Result<any[]>> {
+        try {
+            let query = this.client
+                .from(this.table)
+                .select('id, email, first_name, last_name, phone_number, role, created_at')
+                .order('created_at', { ascending: false });
+
+            if (roleFilter && roleFilter !== 'all') {
+                query = query.eq('role', roleFilter);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return { success: true, data: data || [] } as const;
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error : new Error('Failed to fetch users')
+            } as const;
+        }
+    }
 }

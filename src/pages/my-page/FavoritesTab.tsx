@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Car, BookOpen } from 'lucide-react';
 import type { PartnerFavorite, VehicleFavorite, StoryFavorite } from './types';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface FavoritesTabProps {
   myPartnerFavorites: PartnerFavorite[];
@@ -76,9 +77,7 @@ export default function FavoritesTab({
       </div>
 
       {favoritesLoading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       ) : (
         <>
           {favoriteTab === 'partners' && (
@@ -158,12 +157,12 @@ export default function FavoritesTab({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myVehicleFavorites.map((favorite) => {
-                  const vehicle = favorite.vehicle;
+                  const vehicle = favorite.rental_vehicle?.vehicle;
                   const images = Array.isArray(vehicle?.images) ? vehicle.images : [];
                   return (
                     <Link
                       key={favorite.id}
-                      to={`/vehicles/${favorite.vehicle_id}`}
+                      to={`/vehicles/${favorite.rental_vehicle_id}`}
                       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
                     >
                       {images.length > 0 ? (

@@ -3,11 +3,12 @@ import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import ImageUpload from '../components/ImageUpload';
-import { supabase } from '../lib/supabase';
-import { useQuery } from '../lib/data-access';
+import { useQuery, useRepository, EventRepository } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 // Event型は必要に応じて使用
 
@@ -15,8 +16,12 @@ export default function EventFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const eventRepo = useRepository(EventRepository);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !loading);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -31,18 +36,15 @@ export default function EventFormPage() {
   // 編集時にイベントデータを取得
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const { loading: _loadingEvent } = useQuery<any>(
     async () => {
-      const { data, error } = await (supabase
-        .from('events'))
-        .select('*')
-        .eq('id', id!)
-        .eq('organizer_id', user!.id)
-        .maybeSingle();
+      const result = await eventRepo.findById(id!);
+      if (!result.success) throw result.error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = result.data as any;
 
-      if (error) throw error;
-
-      if (data) {
+      if (data && data.organizer_id === user!.id) {
         setTitle(data.title);
         setDescription(data.description);
         setEventDate(data.event_date.slice(0, 16));
@@ -90,30 +92,20 @@ export default function EventFormPage() {
       };
 
       if (id) {
-        const { error } = await (supabase
-        .from('events'))
-        .update(eventData)
-        .eq('id', id!);
-
-        if (error) throw error;
+        const result = await eventRepo.update(id, eventData);
+        if (!result.success) throw result.error;
 
         toast.success('イベントを更新しました');
         navigate(`/portal/events/${id}`);
       } else {
-        const { data, error } = await (supabase
-        .from('events'))
-        .insert(eventData)
-        .select()
-        .single();
-
-        if (error) throw error;
+        const result = await eventRepo.create(eventData);
+        if (!result.success) throw result.error;
 
         toast.success('イベントを作成しました');
-        navigate(`/portal/events/${data.id}`);
+        navigate(`/portal/events/${result.data.id}`);
       }
     } catch (error) {
-      logger.error('Error saving event:', error);
-      toast.error('イベントの保存に失敗しました');
+      handleError(error, 'イベントの保存に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -122,9 +114,7 @@ export default function EventFormPage() {
   if (authLoading) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -147,7 +137,7 @@ export default function EventFormPage() {
             {id ? 'イベントを編集' : 'イベントを作成'}
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} onChange={() => { if (!isDirty) setIsDirty(true); }} className="space-y-6">
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                 イベント名 <span className="text-red-600">*</span>

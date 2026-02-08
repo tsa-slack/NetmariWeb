@@ -3,9 +3,12 @@ import { User, Edit, Phone, Mail, MapPin, Save, X, UserCircle, Award } from 'luc
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import ConfirmModal from '../../components/ConfirmModal';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import type { Database } from '../../lib/database.types';
 import type { RankProgress } from './types';
 import { logger } from '../../lib/logger';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 type UserUpdate = Database['public']['Tables']['users']['Update'];
 
@@ -18,12 +21,15 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
 
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !profileSaving);
   const [editForm, setEditForm] = useState({
     first_name: profile?.first_name || '',
     last_name: profile?.last_name || '',
     email: profile?.email || '',
     phone: profile?.phone_number || '',
-    bio: profile?.bio || '',
     postal_code: profile?.postal_code || '',
     prefecture: profile?.prefecture || '',
     city: profile?.city || '',
@@ -31,9 +37,14 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
     building: profile?.building || '',
   });
 
-  const handleUpdateProfile = async () => {
+  const handleUpdateProfile = () => {
     if (!user || !profile) return;
+    setShowConfirmModal(true);
+  };
 
+  const confirmUpdateProfile = async () => {
+    if (!user || !profile) return;
+    setShowConfirmModal(false);
     setProfileSaving(true);
     try {
       const emailChanged = editForm.email !== profile.email;
@@ -50,7 +61,6 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
         first_name: editForm.first_name,
         last_name: editForm.last_name,
         phone_number: editForm.phone,
-        bio: editForm.bio,
         postal_code: editForm.postal_code,
         prefecture: editForm.prefecture,
         city: editForm.city,
@@ -73,8 +83,23 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
     }
   };
 
+  const updateEditForm = (updates: Partial<typeof editForm>) => {
+    setEditForm(prev => ({ ...prev, ...updates }));
+    if (!isDirty) setIsDirty(true);
+  };
+
   return (
     <div>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmUpdateProfile}
+        title="プロフィールを更新しますか？"
+        message="この内容でプロフィールを保存します。よろしいですか？"
+        confirmText="保存する"
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">プロフィール情報</h2>
@@ -106,12 +131,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
           </div>
         </div>
 
-        {profile?.bio && (
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">自己紹介</h4>
-            <p className="text-gray-600">{profile.bio}</p>
-          </div>
-        )}
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {profile?.phone_number && (
@@ -296,7 +316,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
               <input
                 type="text"
                 value={editForm.first_name}
-                onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                onChange={(e) => updateEditForm({ first_name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -305,7 +325,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
               <input
                 type="text"
                 value={editForm.last_name}
-                onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                onChange={(e) => updateEditForm({ last_name: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -319,7 +339,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             <input
               type="email"
               value={editForm.email}
-              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              onChange={(e) => updateEditForm({ email: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="text-sm text-gray-600 mt-1">メールアドレスを変更すると、確認メールが送信されます</p>
@@ -333,7 +353,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             <input
               type="tel"
               value={editForm.phone}
-              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              onChange={(e) => updateEditForm({ phone: e.target.value })}
               placeholder="090-1234-5678"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -347,7 +367,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             <input
               type="text"
               value={editForm.postal_code}
-              onChange={(e) => setEditForm({ ...editForm, postal_code: e.target.value })}
+              onChange={(e) => updateEditForm({ postal_code: e.target.value })}
               placeholder="123-4567"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -359,7 +379,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
               <input
                 type="text"
                 value={editForm.prefecture}
-                onChange={(e) => setEditForm({ ...editForm, prefecture: e.target.value })}
+                onChange={(e) => updateEditForm({ prefecture: e.target.value })}
                 placeholder="東京都"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -369,7 +389,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
               <input
                 type="text"
                 value={editForm.city}
-                onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                onChange={(e) => updateEditForm({ city: e.target.value })}
                 placeholder="渋谷区"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -381,7 +401,7 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             <input
               type="text"
               value={editForm.address_line}
-              onChange={(e) => setEditForm({ ...editForm, address_line: e.target.value })}
+              onChange={(e) => updateEditForm({ address_line: e.target.value })}
               placeholder="1-2-3"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -392,22 +412,13 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             <input
               type="text"
               value={editForm.building}
-              onChange={(e) => setEditForm({ ...editForm, building: e.target.value })}
+              onChange={(e) => updateEditForm({ building: e.target.value })}
               placeholder="○○ビル 101号室"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">自己紹介</label>
-            <textarea
-              value={editForm.bio}
-              onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-              rows={4}
-              placeholder="あなたについて教えてください"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+
 
           <div className="flex justify-end gap-3 pt-4">
             <button
@@ -418,7 +429,6 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
                   last_name: profile?.last_name || '',
                   email: profile?.email || '',
                   phone: profile?.phone_number || '',
-                  bio: profile?.bio || '',
                   postal_code: profile?.postal_code || '',
                   prefecture: profile?.prefecture || '',
                   city: profile?.city || '',

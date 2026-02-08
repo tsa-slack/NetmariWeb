@@ -3,17 +3,20 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ImageUpload from '../components/ImageUpload';
+import ConfirmModal from '../components/ConfirmModal';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { supabase } from '../lib/supabase';
 import { Car, Save, ArrowLeft } from 'lucide-react';
 import { useQuery } from '../lib/data-access';
 import { toast } from 'sonner';
-import { logger } from '../lib/logger';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { handleError } from '../lib/handleError';
 
 interface VehicleFormData {
-  make: string;
-  model: string;
+  name: string;
+  manufacturer: string;
   year: number;
-  category: string;
+  type: string;
   image_url: string;
   description: string;
   location: string;
@@ -28,10 +31,10 @@ export default function VehicleFormPage() {
   const isEditing = !!id;
 
   const [formData, setFormData] = useState<VehicleFormData>({
-    make: '',
-    model: '',
+    name: '',
+    manufacturer: '',
     year: new Date().getFullYear(),
-    category: 'バイク',
+    type: 'バイク',
     image_url: '',
     description: '',
     location: '',
@@ -40,6 +43,10 @@ export default function VehicleFormPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useUnsavedChanges(isDirty && !submitting);
 
   // 編集時に車両データを取得
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,16 +66,18 @@ export default function VehicleFormPage() {
       if (rentalError) throw rentalError;
 
       if (rentalData && rentalData.vehicle) {
+        const images = rentalData.vehicle.images;
+        const firstImage = Array.isArray(images) && images.length > 0 ? String(images[0]) : '';
         setFormData({
-          make: rentalData.vehicle.make,
-          model: rentalData.vehicle.model,
-          year: rentalData.vehicle.year,
-          category: rentalData.vehicle.category,
-          image_url: rentalData.vehicle.image_url || '',
+          name: rentalData.vehicle.name || '',
+          manufacturer: rentalData.vehicle.manufacturer || '',
+          year: rentalData.vehicle.year || new Date().getFullYear(),
+          type: rentalData.vehicle.type || 'バイク',
+          image_url: firstImage,
           description: rentalData.vehicle.description || '',
           location: rentalData.location || '',
           price_per_day: Number(rentalData.price_per_day),
-          status: rentalData.status,
+          status: rentalData.status || 'Available',
         });
       }
 
@@ -80,14 +89,21 @@ export default function VehicleFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.make || !formData.model || !formData.location) {
+    if (!formData.name || !formData.manufacturer || !formData.location) {
       toast.warning('必須項目を入力してください');
       return;
     }
 
+    setShowConfirmModal(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirmModal(false);
     setSubmitting(true);
 
     try {
+      const vehicleImages = formData.image_url ? [formData.image_url] : [];
+
       if (isEditing) {
         const { data: rentalVehicle } = await (supabase
 
@@ -103,14 +119,14 @@ export default function VehicleFormPage() {
             .from('vehicles'))
 
             .update({
-              make: formData.make,
-              model: formData.model,
+              name: formData.name,
+              manufacturer: formData.manufacturer,
               year: formData.year,
-              category: formData.category,
-              image_url: formData.image_url,
+              type: formData.type,
+              images: vehicleImages,
               description: formData.description,
             })
-            .eq('id', rentalVehicle.vehicle_id);
+            .eq('id', rentalVehicle.vehicle_id!);
 
           if (vehicleError) throw vehicleError;
 
@@ -137,12 +153,11 @@ export default function VehicleFormPage() {
           .from('vehicles'))
 
           .insert({
-            name: `${formData.make} ${formData.model}`,
-            make: formData.make,
-            model: formData.model,
+            name: formData.name,
+            manufacturer: formData.manufacturer,
             year: formData.year,
-            category: formData.category,
-            image_url: formData.image_url,
+            type: formData.type,
+            images: vehicleImages,
             description: formData.description,
             purpose: 'rental',
           })
@@ -171,19 +186,20 @@ export default function VehicleFormPage() {
 
       navigate('/admin/vehicles');
     } catch (error) {
-      logger.error('Error saving vehicle:', error);
-      toast.error('車両の保存に失敗しました');
+      handleError(error, '車両の保存に失敗しました');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleFormChange = () => {
+    if (!isDirty) setIsDirty(true);
+  };
+
   if (loading || loadingData) {
     return (
       <Layout>
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner />
       </Layout>
     );
   }
@@ -194,6 +210,16 @@ export default function VehicleFormPage() {
 
   return (
     <Layout>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmSubmit}
+        title={isEditing ? '車両を更新しますか？' : '車両を登録しますか？'}
+        message="この内容で保存します。よろしいですか？"
+        confirmText={isEditing ? '更新する' : '登録する'}
+        cancelText="キャンセル"
+        type="info"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <button
@@ -204,7 +230,7 @@ export default function VehicleFormPage() {
             車両管理に戻る
           </button>
 
-          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2 flex items-center">
             <Car className="h-10 w-10 mr-3 text-purple-600" />
             {isEditing ? 'レンタル車両編集' : 'レンタル車両登録'}
           </h1>
@@ -213,7 +239,7 @@ export default function VehicleFormPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
+        <form onSubmit={handleSubmit} onChange={handleFormChange} className="bg-white rounded-xl shadow-lg p-8">
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -222,9 +248,9 @@ export default function VehicleFormPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.make}
+                  value={formData.manufacturer}
                   onChange={(e) =>
-                    setFormData({ ...formData, make: e.target.value })
+                    setFormData({ ...formData, manufacturer: e.target.value })
                   }
                   placeholder="例: ホンダ"
                   required
@@ -234,13 +260,13 @@ export default function VehicleFormPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  モデル<span className="text-red-600">*</span>
+                  車両名<span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.model}
+                  value={formData.name}
                   onChange={(e) =>
-                    setFormData({ ...formData, model: e.target.value })
+                    setFormData({ ...formData, name: e.target.value })
                   }
                   placeholder="例: CB400"
                   required
@@ -269,9 +295,9 @@ export default function VehicleFormPage() {
                   カテゴリー
                 </label>
                 <select
-                  value={formData.category}
+                  value={formData.type}
                   onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
+                    setFormData({ ...formData, type: e.target.value })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
