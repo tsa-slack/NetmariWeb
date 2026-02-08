@@ -114,12 +114,21 @@ export default function Header() {
             )}
           </div>
 
-          <button
-            className="md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <Menu className="h-6 w-6 text-gray-700" />
-          </button>
+          <div className="md:hidden flex items-center space-x-2">
+            {!user && (
+              <Link
+                to="/login"
+                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                ログイン
+              </Link>
+            )}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <Menu className="h-6 w-6 text-gray-700" />
+            </button>
+          </div>
         </div>
 
         {mobileMenuOpen && (
