@@ -80,7 +80,20 @@ export default function StoryDetailPage() {
     }
 
     try {
-      await supabase.rpc('increment_story_views' as never, { story_id: id } as never);
+      // 現在の閲覧数を取得してインクリメント
+      const { data: current } = await supabase
+        .from('stories')
+        .select('views')
+        .eq('id', id)
+        .single();
+
+      const newViews = (current?.views || 0) + 1;
+
+      await supabase
+        .from('stories')
+        .update({ views: newViews })
+        .eq('id', id);
+
       localStorage.setItem(viewedKey, now.toString());
     } catch (error) {
       logger.error('Error incrementing views:', error);
@@ -100,14 +113,28 @@ export default function StoryDetailPage() {
 
         setLiked(false);
       } else {
-        await (supabase
-
-          .from('story_likes'))
-
+        await supabase
+          .from('story_likes')
           .insert({ story_id: story.id, user_id: user.id });
 
         setLiked(true);
       }
+
+      // story_likes テーブルからいいね数を集計して stories テーブルを更新
+      const { count } = await supabase
+        .from('story_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('story_id', story.id!);
+
+      const newLikes = count || 0;
+
+      await supabase
+        .from('stories')
+        .update({ likes: newLikes })
+        .eq('id', story.id!);
+
+      // ローカル state も更新して UI に即座に反映
+      story.likes = newLikes;
     } catch (error) {
       logger.error('Error toggling like:', error);
     }
