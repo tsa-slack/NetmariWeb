@@ -8,7 +8,6 @@ import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import type { Database } from '../../lib/database.types';
 import type { RankProgress } from './types';
 import { logger } from '../../lib/logger';
-import LoadingSpinner from '../../components/LoadingSpinner';
 
 type UserUpdate = Database['public']['Tables']['users']['Update'];
 
@@ -100,206 +99,10 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
         cancelText="キャンセル"
         type="info"
       />
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">プロフィール情報</h2>
-          {!showProfileEdit && (
-            <button
-              onClick={() => setShowProfileEdit(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              編集
-            </button>
-          )}
-        </div>
 
-        <div className="flex items-center space-x-6 mb-8">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
-            <User className="h-12 w-12 text-white" />
-          </div>
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">
-              {profile?.first_name} {profile?.last_name}
-            </h3>
-            <p className="text-gray-600">{profile?.email}</p>
-            <div className="mt-2">
-              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
-                {profile?.rank}
-              </span>
-            </div>
-          </div>
-        </div>
-
-
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {profile?.phone_number && (
-            <div className="flex items-center">
-              <Phone className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-gray-600">{profile.phone_number}</span>
-            </div>
-          )}
-          {profile?.email && (
-            <div className="flex items-center">
-              <Mail className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-gray-600">{profile.email}</span>
-            </div>
-          )}
-        </div>
-
-        {(profile?.postal_code || profile?.prefecture || profile?.city || profile?.address_line) && (
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <MapPin className="h-4 w-4 mr-1" />
-              住所
-            </h4>
-            <div className="text-gray-600">
-              {profile?.postal_code && <p>〒{profile.postal_code}</p>}
-              <p>
-                {profile?.prefecture}{profile?.city}{profile?.address_line}
-                {profile?.building && ` ${profile.building}`}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {rankProgress && (
+      {showProfileEdit ? (
+        /* ─── 編集モード ─── */
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-              <Award className="h-7 w-7 mr-2 text-yellow-600" />
-              会員ランク進捗
-            </h2>
-            <div className="flex items-center">
-              <Award
-                className={`h-8 w-8 mr-2 ${
-                  rankProgress.currentRank === 'Platinum'
-                    ? 'text-gray-400'
-                    : rankProgress.currentRank === 'Gold'
-                    ? 'text-yellow-500'
-                    : rankProgress.currentRank === 'Silver'
-                    ? 'text-gray-300'
-                    : 'text-orange-600'
-                }`}
-              />
-              <span className="text-2xl font-bold text-gray-800">{rankProgress.currentRank}</span>
-            </div>
-          </div>
-
-          {rankProgress.discountRate > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <p className="text-green-800 font-semibold">
-                現在の特典: レンタル料金が{rankProgress.discountRate}%割引になります
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">累計利用金額</span>
-                <span className="text-sm font-semibold text-gray-800">
-                  ¥{rankProgress.totalSpent.toLocaleString()}
-                  {rankProgress.nextRequirements && (
-                    <span className="text-gray-500 ml-2">
-                      / ¥{rankProgress.nextRequirements.min_amount.toLocaleString()}
-                    </span>
-                  )}
-                </span>
-              </div>
-              {rankProgress.nextRequirements && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(
-                        (rankProgress.totalSpent / rankProgress.nextRequirements.min_amount) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">いいね獲得数</span>
-                <span className="text-sm font-semibold text-gray-800">
-                  {rankProgress.totalLikes}
-                  {rankProgress.nextRequirements && (
-                    <span className="text-gray-500 ml-2">
-                      / {rankProgress.nextRequirements.min_likes}
-                    </span>
-                  )}
-                </span>
-              </div>
-              {rankProgress.nextRequirements && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-pink-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(
-                        (rankProgress.totalLikes / rankProgress.nextRequirements.min_likes) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">公開投稿数</span>
-                <span className="text-sm font-semibold text-gray-800">
-                  {rankProgress.totalPosts}
-                  {rankProgress.nextRequirements && (
-                    <span className="text-gray-500 ml-2">
-                      / {rankProgress.nextRequirements.min_posts}
-                    </span>
-                  )}
-                </span>
-              </div>
-              {rankProgress.nextRequirements && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(
-                        (rankProgress.totalPosts / rankProgress.nextRequirements.min_posts) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {rankProgress.nextRank && (
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">{rankProgress.nextRank}ランク</span>まであと少し！
-                いずれかの条件を達成すると自動的にランクアップします。
-              </p>
-            </div>
-          )}
-
-          {!rankProgress.nextRank && (
-            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800 font-semibold">
-                最高ランクに到達しています！引き続きサービスをお楽しみください。
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {showProfileEdit && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
@@ -418,12 +221,11 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
             />
           </div>
 
-
-
           <div className="flex justify-end gap-3 pt-4">
             <button
               onClick={() => {
                 setShowProfileEdit(false);
+                setIsDirty(false);
                 setEditForm({
                   first_name: profile?.first_name || '',
                   last_name: profile?.last_name || '',
@@ -462,6 +264,203 @@ export default function ProfileTab({ rankProgress }: ProfileTabProps) {
           </div>
         </div>
         </div>
+      ) : (
+        /* ─── 表示モード ─── */
+        <>
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">プロフィール情報</h2>
+              <button
+                onClick={() => setShowProfileEdit(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                編集
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-6 mb-8">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                <User className="h-12 w-12 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {profile?.first_name} {profile?.last_name}
+                </h3>
+                <p className="text-gray-600">{profile?.email}</p>
+                <div className="mt-2">
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                    {profile?.rank}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {profile?.phone_number && (
+                <div className="flex items-center">
+                  <Phone className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-600">{profile.phone_number}</span>
+                </div>
+              )}
+              {profile?.email && (
+                <div className="flex items-center">
+                  <Mail className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-600">{profile.email}</span>
+                </div>
+              )}
+            </div>
+
+            {(profile?.postal_code || profile?.prefecture || profile?.city || profile?.address_line) && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  住所
+                </h4>
+                <div className="text-gray-600">
+                  {profile?.postal_code && <p>〒{profile.postal_code}</p>}
+                  <p>
+                    {profile?.prefecture}{profile?.city}{profile?.address_line}
+                    {profile?.building && ` ${profile.building}`}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {rankProgress && (
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                  <Award className="h-7 w-7 mr-2 text-yellow-600" />
+                  会員ランク進捗
+                </h2>
+                <div className="flex items-center">
+                  <Award
+                    className={`h-8 w-8 mr-2 ${
+                      rankProgress.currentRank === 'Platinum'
+                        ? 'text-gray-400'
+                        : rankProgress.currentRank === 'Gold'
+                        ? 'text-yellow-500'
+                        : rankProgress.currentRank === 'Silver'
+                        ? 'text-gray-300'
+                        : 'text-orange-600'
+                    }`}
+                  />
+                  <span className="text-2xl font-bold text-gray-800">{rankProgress.currentRank}</span>
+                </div>
+              </div>
+
+              {rankProgress.discountRate > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <p className="text-green-800 font-semibold">
+                    現在の特典: レンタル料金が{rankProgress.discountRate}%割引になります
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">累計利用金額</span>
+                    <span className="text-sm font-semibold text-gray-800">
+                      ¥{rankProgress.totalSpent.toLocaleString()}
+                      {rankProgress.nextRequirements && (
+                        <span className="text-gray-500 ml-2">
+                          / ¥{rankProgress.nextRequirements.min_amount.toLocaleString()}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  {rankProgress.nextRequirements && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (rankProgress.totalSpent / rankProgress.nextRequirements.min_amount) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">いいね獲得数</span>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {rankProgress.totalLikes}
+                      {rankProgress.nextRequirements && (
+                        <span className="text-gray-500 ml-2">
+                          / {rankProgress.nextRequirements.min_likes}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  {rankProgress.nextRequirements && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-pink-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (rankProgress.totalLikes / rankProgress.nextRequirements.min_likes) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">公開投稿数</span>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {rankProgress.totalPosts}
+                      {rankProgress.nextRequirements && (
+                        <span className="text-gray-500 ml-2">
+                          / {rankProgress.nextRequirements.min_posts}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  {rankProgress.nextRequirements && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (rankProgress.totalPosts / rankProgress.nextRequirements.min_posts) * 100,
+                            100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {rankProgress.nextRank && (
+                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-semibold">{rankProgress.nextRank}ランク</span>まであと少し！
+                    いずれかの条件を達成すると自動的にランクアップします。
+                  </p>
+                </div>
+              )}
+
+              {!rankProgress.nextRank && (
+                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 font-semibold">
+                    最高ランクに到達しています！引き続きサービスをお楽しみください。
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
