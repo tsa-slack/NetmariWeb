@@ -97,21 +97,35 @@ export default function RoutePage() {
 
     setSaving(true);
     try {
-      const result = await routeRepo.create({
-        user_id: user.id,
+      const routeData = {
         name: routeName,
         origin,
         destination,
         description: routeDescription || `${origin}から${destination}までのルート`,
         is_public: isPublic,
-      });
+      };
 
-      if (!result.success) {
-        logger.error('Route error:', result.error);
-        throw result.error;
+      if (loadedRoute) {
+        // 既存ルートの更新
+        const result = await routeRepo.update(loadedRoute.id, routeData);
+        if (!result.success) {
+          logger.error('Route update error:', result.error);
+          throw result.error;
+        }
+        setMessage(`ルートを更新しました ${isPublic ? '（公開）' : '（非公開）'}`);
+      } else {
+        // 新規ルートの作成
+        const result = await routeRepo.create({
+          user_id: user.id,
+          ...routeData,
+        });
+        if (!result.success) {
+          logger.error('Route error:', result.error);
+          throw result.error;
+        }
+        setMessage(`ルートを保存しました ${isPublic ? '（公開）' : '（非公開）'}`);
       }
 
-      setMessage(`ルートを保存しました ${isPublic ? '（公開）' : '（非公開）'}`);
       setRouteName('');
       setRouteDescription('');
       setOrigin('');
