@@ -4,15 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
-import { useRepository, ContactRepository } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
 import { Mail, Phone, MessageSquare, Send, CheckCircle } from 'lucide-react';
-import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
 
 export default function ContactPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const contactRepo = useRepository(ContactRepository);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -56,19 +54,25 @@ export default function ContactPage() {
     setLoading(true);
 
     try {
-      const result = await contactRepo.create({
-        user_id: user?.id || null,
-        name: formData.name,
-        email: formData.email,
-        phone_number: formData.phone_number || null,
-        subject: formData.subject,
-        message: formData.message,
-        category: formData.category,
-      });
+      // BaseRepository.create() は INSERT ... RETURNING * を実行するため
+      // SELECT の RLS ポリシーも必要になる。お問い合わせは INSERT のみで十分なので
+      // 直接 supabase クライアントを使用する
+      const { error } = await supabase
+        .from('contacts')
+        .insert({
+          user_id: user?.id || null,
+          name: formData.name,
+          email: formData.email,
+          phone_number: formData.phone_number || null,
+          subject: formData.subject,
+          message: formData.message,
+          category: formData.category,
+        });
 
-      if (!result.success) throw result.error;
+      if (error) throw error;
 
       setSubmitted(true);
+      setIsDirty(false);
     } catch (error) {
       handleError(error, 'お問い合わせの送信に失敗しました。もう一度お試しください。');
     } finally {
