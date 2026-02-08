@@ -281,25 +281,26 @@ export default function MyPage() {
         )}
 
         {/* Tab Navigation */}
-        <div className="mb-8 bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="flex overflow-x-auto">
+        <div className="mb-8 bg-white rounded-xl shadow-lg p-2">
+          <div className="flex overflow-x-auto gap-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 min-w-[120px] px-6 py-4 text-center font-semibold transition border-b-4 ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-600 hover:bg-gray-50'
+                  className={`flex-1 min-w-[100px] px-4 py-3 text-center font-semibold transition-all rounded-lg ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 mx-auto mb-1 ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-600'}`} />
-                  <span className="text-sm">{tab.label}</span>
+                  <Icon className={`h-5 w-5 mx-auto mb-1 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                  <span className="text-xs sm:text-sm block">{tab.label}</span>
                   {tab.count !== undefined && (
                     <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
-                      activeTab === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                      isActive ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
                     }`}>
                       {tab.count}
                     </span>
