@@ -159,7 +159,6 @@ export default function StoryFormPage() {
         tags: tagsArray.length > 0 ? tagsArray : null,
         images: uploadedImages.length > 0 ? uploadedImages : null,
         status: formData.status,
-        published_at: formData.status === 'Published' ? new Date().toISOString() : null,
       };
 
       if (id) {
