@@ -20,7 +20,8 @@ type Event = Row<'events'> & {
 };
 
 export default function EventsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, isStaff, loading: authLoading } = useAuth();
+  const canCreateEvent = isAdmin || isStaff;
   const [filter, setFilter] = useState<string>('all');
   
   // リポジトリインスタンスを作成
@@ -140,13 +141,15 @@ export default function EventsPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">イベント</h1>
             <p className="text-gray-600">コミュニティのイベントを探して参加しよう</p>
           </div>
-          <Link
-            to="/portal/events/new"
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            イベントを作成
-          </Link>
+          {canCreateEvent && (
+            <Link
+              to="/portal/events/new"
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              イベントを作成
+            </Link>
+          )}
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
@@ -188,13 +191,15 @@ export default function EventsPage() {
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">イベントがありません</p>
-            <Link
-              to="/portal/events/new"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              最初のイベントを作成
-            </Link>
+            {canCreateEvent && (
+              <Link
+                to="/portal/events/new"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                最初のイベントを作成
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

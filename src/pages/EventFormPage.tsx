@@ -15,13 +15,18 @@ import { handleError } from '../lib/handleError';
 export default function EventFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isAdmin, isStaff, loading: authLoading } = useAuth();
   const eventRepo = useRepository(EventRepository);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   useUnsavedChanges(isDirty && !loading);
+
+  // Admin/Staff のみイベント作成・編集可能
+  if (!authLoading && user && !isAdmin && !isStaff) {
+    return <Navigate to="/portal/events" replace />;
+  }
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
