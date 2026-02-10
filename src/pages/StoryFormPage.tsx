@@ -11,6 +11,7 @@ import { useQuery, useRepository, StoryRepository } from '../lib/data-access';
 import { toast } from 'sonner';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
+import PlaceAutocomplete, { type PlaceResult } from '../components/PlaceAutocomplete';
 
 
 
@@ -33,6 +34,8 @@ export default function StoryFormPage() {
     excerpt: '',
     cover_image: '',
     location: '',
+    latitude: '',
+    longitude: '',
     tags: '',
     status: 'Draft' as 'Draft' | 'Published',
   });
@@ -69,6 +72,8 @@ export default function StoryFormPage() {
         excerpt: data.excerpt || '',
         cover_image: data.cover_image || '',
         location: data.location || '',
+        latitude: data.latitude?.toString() || '',
+        longitude: data.longitude?.toString() || '',
         tags: Array.isArray(data.tags) ? (data.tags as string[]).join(', ') : '',
         status: data.status as 'Draft' | 'Published',
       });
@@ -156,6 +161,8 @@ export default function StoryFormPage() {
         excerpt: formData.excerpt.trim() || null,
         cover_image: formData.cover_image.trim() || null,
         location: formData.location.trim() || null,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         tags: tagsArray.length > 0 ? tagsArray : null,
         images: uploadedImages.length > 0 ? uploadedImages : null,
         status: formData.status,
@@ -318,16 +325,23 @@ export default function StoryFormPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                場所
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="訪問した場所"
+              <PlaceAutocomplete
+                label="場所"
+                defaultValue={formData.location}
+                placeholder="訪問した場所を検索"
+                onPlaceSelect={(place: PlaceResult) => {
+                  setFormData({
+                    ...formData,
+                    location: place.name || place.address,
+                    latitude: place.latitude ? place.latitude.toString() : '',
+                    longitude: place.longitude ? place.longitude.toString() : '',
+                  });
+                  if (!isDirty) setIsDirty(true);
+                }}
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Google検索で場所を選ぶと位置情報が自動設定されます
+              </p>
             </div>
 
             <div>

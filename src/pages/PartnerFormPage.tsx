@@ -8,6 +8,7 @@ import { useQuery, useRepository, PartnerRepository } from '../lib/data-access';
 import { toast } from 'sonner';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
+import PlaceAutocomplete, { type PlaceResult } from '../components/PlaceAutocomplete';
 
 
 
@@ -185,17 +186,25 @@ export default function PartnerFormPage() {
           <form onSubmit={handleSubmit} onChange={handleFormChange} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  協力店名 <span className="text-red-600">*</span>
-                </label>
-                <input
+                <PlaceAutocomplete
                   id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  label="協力店名"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  defaultValue={name}
+                  placeholder="施設名を入力して検索（例：道の駅○○）"
+                  onPlaceSelect={(place: PlaceResult) => {
+                    setName(place.name);
+                    if (place.address) setAddress(place.address);
+                    if (place.latitude) setLatitude(place.latitude.toString());
+                    if (place.longitude) setLongitude(place.longitude.toString());
+                    if (place.phone) setPhone(place.phone);
+                    if (place.website) setWebsite(place.website);
+                    if (!isDirty) setIsDirty(true);
+                  }}
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  Google検索で施設を選ぶと住所・連絡先が自動入力されます
+                </p>
               </div>
 
               <div>
