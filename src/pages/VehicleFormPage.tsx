@@ -22,6 +22,7 @@ interface VehicleFormData {
   location: string;
   price_per_day: number;
   status: string;
+  license_plate: string;
 }
 
 export default function VehicleFormPage() {
@@ -40,6 +41,7 @@ export default function VehicleFormPage() {
     location: '',
     price_per_day: 0,
     status: 'Available',
+    license_plate: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -78,6 +80,7 @@ export default function VehicleFormPage() {
           location: rentalData.location || '',
           price_per_day: Number(rentalData.price_per_day),
           status: rentalData.status || 'Available',
+          license_plate: rentalData.license_plate || '',
         });
       }
 
@@ -140,6 +143,7 @@ export default function VehicleFormPage() {
               location: formData.location,
               price_per_day: formData.price_per_day,
               status: formData.status,
+              license_plate: formData.license_plate || null,
             })
             .eq('id', id!);
 
@@ -177,6 +181,7 @@ export default function VehicleFormPage() {
             location: formData.location,
             price_per_day: formData.price_per_day,
             status: formData.status,
+            license_plate: formData.license_plate || null,
           });
 
         if (rentalError) throw rentalError;
@@ -323,6 +328,22 @@ export default function VehicleFormPage() {
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ナンバープレート
+                </label>
+                <input
+                  type="text"
+                  value={formData.license_plate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, license_plate: e.target.value })
+                  }
+                  placeholder="例: 品川 300 あ 12-34"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">スタッフ・管理者のみ表示されます</p>
               </div>
 
               <div>

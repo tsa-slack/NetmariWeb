@@ -63,20 +63,33 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
     }
 
     /**
+     * 日付文字列を±N日ずらすヘルパー
+     */
+    private addDays(dateStr: string, days: number): string {
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().split('T')[0];
+    }
+
+    /**
      * 利用可能なレンタル車両を取得（車両情報JOIN付き）
      * 指定日付範囲で予約が重複していない車両のみ返す
      */
     async getAvailableVehicles(startDate?: string, endDate?: string): Promise<Result<RentalVehicleWithVehicle[]>> {
         try {
             // 指定期間に重複する予約がある車両IDを取得
+            // バッファ日（前日準備+翌日返却）を含めた範囲で重複チェック
             let bookedVehicleIds: string[] = [];
             if (startDate && endDate) {
+                const bufferStart = this.addDays(startDate, -1);
+                const bufferEnd = this.addDays(endDate, 1);
+
                 const { data: overlapping, error: overlapError } = await this.client
                     .from('reservations')
                     .select('rental_vehicle_id')
                     .in('status', ['Pending', 'Confirmed', 'InProgress'])
-                    .lte('start_date', endDate)
-                    .gte('end_date', startDate);
+                    .lte('start_date', bufferEnd)
+                    .gte('end_date', bufferStart);
 
                 if (overlapError) throw overlapError;
 
@@ -254,13 +267,17 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
         endDate: string
     ): Promise<Result<boolean>> {
         try {
+            // バッファ日（前日準備+翌日返却）を含めた範囲で重複チェック
+            const bufferStart = this.addDays(startDate, -1);
+            const bufferEnd = this.addDays(endDate, 1);
+
             const { data, error } = await this.client
                 .from('reservations')
                 .select('id')
                 .eq('rental_vehicle_id', vehicleId)
                 .in('status', ['Pending', 'Confirmed', 'CheckedOut'])
-                .lte('start_date', endDate)
-                .gte('end_date', startDate)
+                .lte('start_date', bufferEnd)
+                .gte('end_date', bufferStart)
                 .limit(1);
 
             if (error) throw error;

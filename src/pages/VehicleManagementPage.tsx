@@ -21,6 +21,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 interface RentalVehicle {
   id: string;
+  license_plate: string | null;
   location: string;
   price_per_day: number;
   status: string;
@@ -53,6 +54,7 @@ export default function VehicleManagementPage() {
         .from('rental_vehicles')
         .select(`
           id,
+          license_plate,
           location,
           price_per_day,
           status,
@@ -121,7 +123,8 @@ export default function VehicleManagementPage() {
       vehicle.vehicle.manufacturer?.toLowerCase().includes(searchLower) ||
       vehicle.vehicle.name?.toLowerCase().includes(searchLower) ||
       vehicle.vehicle.type?.toLowerCase().includes(searchLower) ||
-      vehicle.location?.toLowerCase().includes(searchLower)
+      vehicle.location?.toLowerCase().includes(searchLower) ||
+      vehicle.license_plate?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -296,6 +299,11 @@ export default function VehicleManagementPage() {
                           <p className="text-sm text-gray-600 flex items-center">
                             <MapPin className="h-4 w-4 mr-1" />
                             {vehicle.location}
+                          </p>
+                        )}
+                        {vehicle.license_plate && (
+                          <p className="text-sm text-gray-500 flex items-center">
+                            🚗 {vehicle.license_plate}
                           </p>
                         )}
                         <p className="text-lg font-bold text-purple-600 flex items-center">
