@@ -30,12 +30,25 @@ export default function Header() {
     <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center space-x-2">
-            <Car className="h-8 w-8 text-blue-600" />
-            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              Netomari
-            </span>
-          </Link>
+          <div className="flex items-center">
+            {/* モバイル: ハンバーガー（左端） */}
+            <button
+              className="md:hidden mr-3"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
+            </button>
+            <Link to="/" className="flex items-center space-x-2">
+              <Car className="h-8 w-8 text-blue-600" />
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                Netomari
+              </span>
+            </Link>
+          </div>
 
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/vehicles" className="text-gray-700 hover:text-blue-600 transition">
@@ -120,25 +133,17 @@ export default function Header() {
             )}
           </div>
 
-          <div className="md:hidden flex items-center space-x-2">
-            {!user && (
+          {/* モバイル: ログインボタン（右端） */}
+          {!user && (
+            <div className="md:hidden">
               <Link
                 to="/login"
                 className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 ログイン
               </Link>
-            )}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
-              ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
-              )}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {mobileMenuOpen && (
