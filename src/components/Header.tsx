@@ -1,8 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSystemSettings } from '../hooks/useSystemSettings';
-import { Car, Menu, User, LogOut, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { Car, Menu, X, User, LogOut, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { logger } from '../lib/logger';
 
 export default function Header() {
@@ -10,6 +10,12 @@ export default function Header() {
   const { settings } = useSystemSettings();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // ページ遷移時にモバイルメニューを自動的に閉じる
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     try {
@@ -126,7 +132,11 @@ export default function Header() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              <Menu className="h-6 w-6 text-gray-700" />
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
             </button>
           </div>
         </div>
