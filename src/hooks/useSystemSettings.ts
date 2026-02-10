@@ -12,6 +12,7 @@ interface SystemSettings {
   rental_intro_title: string;
   rental_intro_description: string;
   faq_items: string;
+  payment_method: 'both' | 'card_only' | 'cash_only';
 }
 
 export function useSystemSettings() {
@@ -34,16 +35,20 @@ export function useSystemSettings() {
     rental_intro_title: '車中泊レンタルの魅力',
     rental_intro_description: 'キャンピングカーでの車中泊は自由な旅の始まり。',
     faq_items: '',
+    payment_method: 'both',
   });
 
   useEffect(() => {
     if (settingsData) {
       const booleanKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
+      const enumKeys = ['payment_method'];
       const newSettings: Partial<SystemSettings> = {};
       Object.entries(settingsData).forEach(([key, value]) => {
         if (key in settings) {
           if (booleanKeys.includes(key)) {
             (newSettings as Record<string, unknown>)[key] = value === 'true';
+          } else if (enumKeys.includes(key)) {
+            (newSettings as Record<string, unknown>)[key] = value || 'both';
           } else {
             (newSettings as Record<string, unknown>)[key] = value || '';
           }

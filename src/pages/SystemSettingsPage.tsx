@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { Settings, Save, AlertCircle, CheckCircle, Info, Award } from 'lucide-react';
+import { Settings, Save, AlertCircle, CheckCircle, Info, Award, CreditCard, Banknote } from 'lucide-react';
 import { useQuery, SystemSettingsRepository } from '../lib/data-access';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
@@ -117,6 +117,22 @@ export default function SystemSettingsPage() {
 
   const booleanSettingKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
 
+  const handlePaymentMethodChange = (value: string) => {
+    const existing = settings.find(s => s.key === 'payment_method');
+    if (existing) {
+      setSettings(
+        settings.map(s =>
+          s.key === 'payment_method' ? { ...s, value } : s
+        )
+      );
+    } else {
+      setSettings([
+        ...settings,
+        { id: 'payment_method', key: 'payment_method', value, description: '支払い方法の設定', updated_at: null },
+      ]);
+    }
+  };
+
   const getSettingLabel = (key: string) => {
     switch (key) {
       case 'rental_enabled':
@@ -221,6 +237,51 @@ export default function SystemSettingsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* 支払い方法設定 */}
+              <div className="p-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2 text-blue-600" />
+                  支払い方法設定
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  ユーザーが予約時に選択できる支払い方法を設定します
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { value: 'both', label: '両方', desc: 'カードと現地払いの両方', icon: <><CreditCard className="h-5 w-5" /><span className="mx-1">&</span><Banknote className="h-5 w-5" /></> },
+                    { value: 'card_only', label: 'カードのみ', desc: 'クレジットカードのみ', icon: <CreditCard className="h-5 w-5" /> },
+                    { value: 'cash_only', label: '現地払いのみ', desc: '現金（現地支払い）のみ', icon: <Banknote className="h-5 w-5" /> },
+                  ].map((option) => {
+                    const currentValue = settings.find(s => s.key === 'payment_method')?.value || 'both';
+                    const isSelected = currentValue === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handlePaymentMethodChange(option.value)}
+                        className={`p-4 border-2 rounded-lg transition text-left ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className={`flex items-center mb-2 ${
+                          isSelected ? 'text-blue-600' : 'text-gray-600'
+                        }`}>
+                          {option.icon}
+                        </div>
+                        <p className={`font-semibold ${
+                          isSelected ? 'text-blue-600' : 'text-gray-800'
+                        }`}>
+                          {option.label}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{option.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">

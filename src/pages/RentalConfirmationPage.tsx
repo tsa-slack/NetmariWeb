@@ -15,6 +15,7 @@ import RentalOrderSummary from '../components/rental/RentalOrderSummary';
 import RentalPaymentForm, { type PaymentResult } from '../components/rental/RentalPaymentForm';
 import ReservationSuccessModal from '../components/rental/ReservationSuccessModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useSystemSettings } from '../hooks/useSystemSettings';
 
 type RentalVehicle = Database['public']['Tables']['rental_vehicles']['Row'] & {
   vehicle?: Database['public']['Tables']['vehicles']['Row'] | null;
@@ -44,6 +45,7 @@ const rentalFlowRepo = new RentalFlowRepository();
 export default function RentalConfirmationPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { settings } = useSystemSettings();
   const [searchParams] = useSearchParams();
   const [rentalVehicle, setRentalVehicle] = useState<RentalVehicle | null>(null);
   const [equipment, setEquipment] = useState<
@@ -332,6 +334,7 @@ export default function RentalConfirmationPage() {
               }}
               submitting={submitting}
               error={error}
+              paymentMethodSetting={settings.payment_method}
             />
           )}
         </div>

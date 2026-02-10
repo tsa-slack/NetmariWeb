@@ -25,6 +25,7 @@ interface RentalPaymentFormProps {
   onBack: () => void;
   submitting: boolean;
   error: string;
+  paymentMethodSetting?: 'both' | 'card_only' | 'cash_only';
 }
 
 export default function RentalPaymentForm({
@@ -38,8 +39,12 @@ export default function RentalPaymentForm({
   onBack,
   submitting,
   error,
+  paymentMethodSetting = 'both',
 }: RentalPaymentFormProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'CreditCard' | 'OnSite'>('CreditCard');
+  const showCard = paymentMethodSetting === 'both' || paymentMethodSetting === 'card_only';
+  const showCash = paymentMethodSetting === 'both' || paymentMethodSetting === 'cash_only';
+  const defaultMethod = showCard ? 'CreditCard' : 'OnSite';
+  const [paymentMethod, setPaymentMethod] = useState<'CreditCard' | 'OnSite'>(defaultMethod);
   const [cardName, setCardName] = useState('');
   const [stripe, setStripe] = useState<Stripe | null>(null);
   const [cardNumberElement, setCardNumberElement] = useState<StripeCardNumberElement | null>(null);
@@ -279,7 +284,8 @@ export default function RentalPaymentForm({
           <label className="block text-sm font-medium text-gray-700 mb-3">
             お支払い方法
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid gap-4 ${showCard && showCash ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {showCard && (
             <button
               type="button"
               onClick={() => setPaymentMethod('CreditCard')}
@@ -299,6 +305,8 @@ export default function RentalPaymentForm({
               </p>
               <p className="text-xs text-gray-600 mt-1">即時決済</p>
             </button>
+            )}
+            {showCash && (
             <button
               type="button"
               onClick={() => setPaymentMethod('OnSite')}
@@ -318,6 +326,7 @@ export default function RentalPaymentForm({
               </p>
               <p className="text-xs text-gray-600 mt-1">受取時に支払い</p>
             </button>
+            )}
           </div>
         </div>
 
