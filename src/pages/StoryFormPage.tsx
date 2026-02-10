@@ -246,6 +246,26 @@ export default function StoryFormPage() {
             </div>
 
             <div>
+              <PlaceAutocomplete
+                label="場所"
+                defaultValue={formData.location}
+                placeholder="訪問した場所を検索"
+                onPlaceSelect={(place: PlaceResult) => {
+                  setFormData({
+                    ...formData,
+                    location: place.name || place.address,
+                    latitude: place.latitude ? place.latitude.toString() : '',
+                    longitude: place.longitude ? place.longitude.toString() : '',
+                  });
+                  if (!isDirty) setIsDirty(true);
+                }}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Google検索で場所を選ぶと位置情報が自動設定されます
+              </p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 本文 <span className="text-red-500">*</span>
               </label>
@@ -324,25 +344,7 @@ export default function StoryFormPage() {
               </div>
             </div>
 
-            <div>
-              <PlaceAutocomplete
-                label="場所"
-                defaultValue={formData.location}
-                placeholder="訪問した場所を検索"
-                onPlaceSelect={(place: PlaceResult) => {
-                  setFormData({
-                    ...formData,
-                    location: place.name || place.address,
-                    latitude: place.latitude ? place.latitude.toString() : '',
-                    longitude: place.longitude ? place.longitude.toString() : '',
-                  });
-                  if (!isDirty) setIsDirty(true);
-                }}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Google検索で場所を選ぶと位置情報が自動設定されます
-              </p>
-            </div>
+
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
