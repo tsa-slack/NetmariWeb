@@ -45,6 +45,13 @@
      - contacts
      - admin_logs
      - announcements
+
+  Updated: 2026-02-11
+  Changes:
+    - rental_vehicles に license_plate カラム追加
+    - system_settings に payment_method カラム追加
+    - 全テーブルに updated_at トリガー追加
+    - 初期データ（system_settings）の INSERT 追加
 */
 
 -- ============================================================================
@@ -187,6 +194,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
   key text UNIQUE NOT NULL,
   value text,
   description text,
+  payment_method text DEFAULT 'both' CHECK (payment_method IN ('card_only', 'onsite_only', 'both')),
   rank_settings jsonb DEFAULT '{
     "ranks": {
       "Bronze": {"name": "Bronze", "min_amount": 0, "min_likes": 0, "min_posts": 0, "discount_rate": 0},
@@ -203,6 +211,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Everyone can view settings" ON system_settings FOR SELECT USING (true);
 CREATE POLICY "Admins can update settings" ON system_settings FOR UPDATE USING (check_user_role(ARRAY['Admin']));
+CREATE POLICY "Admins can insert settings" ON system_settings FOR INSERT WITH CHECK (check_user_role(ARRAY['Admin']));
 
 -- ============================================================================
 -- 3. CATALOG
@@ -233,6 +242,7 @@ CREATE TABLE IF NOT EXISTS rental_vehicles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   vehicle_id uuid REFERENCES vehicles(id) ON DELETE CASCADE,
   location text,
+  license_plate text,
   price_per_day numeric NOT NULL,
   available_dates jsonb DEFAULT '[]'::jsonb,
   unavailable_dates jsonb DEFAULT '[]'::jsonb,
@@ -346,6 +356,8 @@ ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own reservations" ON reservations FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Staff can view all reservations" ON reservations FOR SELECT USING (check_user_role(ARRAY['Admin', 'Staff']));
 CREATE POLICY "Users can create reservations" ON reservations FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Staff can update reservations" ON reservations FOR UPDATE USING (check_user_role(ARRAY['Admin', 'Staff']));
+CREATE POLICY "Users can update own reservations" ON reservations FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS reservation_equipment (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -360,6 +372,8 @@ CREATE TABLE IF NOT EXISTS reservation_equipment (
 
 ALTER TABLE reservation_equipment ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own equipments" ON reservation_equipment FOR SELECT USING (EXISTS (SELECT 1 FROM reservations WHERE id = reservation_equipment.reservation_id AND user_id = auth.uid()));
+CREATE POLICY "Users can insert own equipments" ON reservation_equipment FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM reservations WHERE id = reservation_equipment.reservation_id AND user_id = auth.uid()));
+CREATE POLICY "Staff can manage reservation equipment" ON reservation_equipment FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 CREATE TABLE IF NOT EXISTS reservation_activities (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -373,6 +387,8 @@ CREATE TABLE IF NOT EXISTS reservation_activities (
 
 ALTER TABLE reservation_activities ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own activities" ON reservation_activities FOR SELECT USING (EXISTS (SELECT 1 FROM reservations WHERE id = reservation_activities.reservation_id AND user_id = auth.uid()));
+CREATE POLICY "Users can insert own activities" ON reservation_activities FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM reservations WHERE id = reservation_activities.reservation_id AND user_id = auth.uid()));
+CREATE POLICY "Staff can manage reservation activities" ON reservation_activities FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 -- ============================================================================
 -- 5. COMMUNITY - STORIES
@@ -400,6 +416,7 @@ CREATE TABLE IF NOT EXISTS stories (
 ALTER TABLE stories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can view published stories" ON stories FOR SELECT USING (status = 'Published' OR auth.uid() = author_id);
 CREATE POLICY "Users can manage own stories" ON stories FOR ALL USING (auth.uid() = author_id);
+CREATE POLICY "Staff can manage all stories" ON stories FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 CREATE TABLE IF NOT EXISTS story_questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -476,6 +493,7 @@ CREATE POLICY "Everyone can view questions" ON questions FOR SELECT USING (true)
 CREATE POLICY "Users can create questions" ON questions FOR INSERT WITH CHECK (auth.uid() = author_id);
 CREATE POLICY "Users can update own questions" ON questions FOR UPDATE TO authenticated USING (auth.uid() = author_id);
 CREATE POLICY "Users can delete own questions" ON questions FOR DELETE TO authenticated USING (auth.uid() = author_id);
+CREATE POLICY "Staff can manage all questions" ON questions FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 CREATE TABLE IF NOT EXISTS answers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -731,7 +749,32 @@ CREATE POLICY "Public view announcements" ON announcements FOR SELECT USING (pub
 CREATE POLICY "Admins manage announcements" ON announcements FOR ALL USING (check_user_role(ARRAY['Admin', 'Staff']));
 
 -- ============================================================================
--- RANK SYSTEM FUNCTIONS (from add_rank_system.sql)
+-- UPDATED_AT TRIGGERS
+-- ============================================================================
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_rental_vehicles_updated_at BEFORE UPDATE ON rental_vehicles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_equipment_updated_at BEFORE UPDATE ON equipment FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_partners_updated_at BEFORE UPDATE ON partners FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_reservations_updated_at BEFORE UPDATE ON reservations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_stories_updated_at BEFORE UPDATE ON stories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_story_questions_updated_at BEFORE UPDATE ON story_questions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_story_answers_updated_at BEFORE UPDATE ON story_answers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_questions_updated_at BEFORE UPDATE ON questions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_answers_updated_at BEFORE UPDATE ON answers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_routes_updated_at BEFORE UPDATE ON routes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_rental_checklists_updated_at BEFORE UPDATE ON rental_checklists FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- RANK SYSTEM FUNCTIONS
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION calculate_total_spent(user_uuid UUID)
@@ -816,3 +859,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ============================================================================
+-- INITIAL SEED DATA
+-- ============================================================================
+
+-- システム設定の初期レコード
+INSERT INTO system_settings (key, value, description, payment_method)
+VALUES ('general', 'true', 'レンタル機能の有効/無効を含むシステム全般設定', 'both')
+ON CONFLICT (key) DO NOTHING;

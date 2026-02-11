@@ -141,6 +141,7 @@ erDiagram
 | `id` | uuid PK | ✅ | |
 | `vehicle_id` | uuid FK | | → vehicles |
 | `location` | text | | 保管場所 |
+| `license_plate` | text | | ナンバープレート（管理者用） |
 | `price_per_day` | numeric | ✅ | 日額料金 |
 | `options` | jsonb | | オプション |
 | `available_dates` | jsonb | | 利用可能日 |
@@ -489,6 +490,7 @@ erDiagram
 | `key` | text | 設定キー |
 | `value` | text | 設定値 |
 | `description` | text | 説明 |
+| `payment_method` | text | 支払い方法（card_only / onsite_only / both） |
 | `rank_settings` | jsonb | ランクシステム設定 |
 | `updated_by` | uuid FK | → users（更新者） |
 
