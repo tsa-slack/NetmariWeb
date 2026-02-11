@@ -52,7 +52,7 @@
 |---------|------|
 | フロントエンド | React 18 / TypeScript 5.5 / Vite 5.4 / Tailwind CSS |
 | ルーティング | React Router v7 |
-| 地図 | React Leaflet (Leaflet.js) |
+| 地図 | React Leaflet (Leaflet.js) / Google Maps Places API |
 | 決済 | Stripe（Edge Functions 経由） |
 | バックエンド | Supabase (PostgreSQL + Auth + Storage + Edge Functions) |
 | セキュリティ | Row Level Security (RLS) 全テーブル |
@@ -117,13 +117,31 @@ cd netomari
 npm install
 
 # 2. 環境変数設定
-cp .env.example .env
-# .env を編集: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+cp .env.sample .env
+# .env を編集:
+#   VITE_SUPABASE_URL         - Supabase プロジェクトURL
+#   VITE_SUPABASE_ANON_KEY    - Supabase Anon Key
+#   VITE_STRIPE_PUBLISHABLE_KEY - Stripe 公開キー（レンタル決済用）
+#   VITE_GOOGLE_MAPS_API_KEY  - Google Maps API キー（施設検索用）
 
 # 3. 開発サーバー起動
 npm run dev
 # → http://localhost:5173
 ```
+
+### Google Maps API セットアップ
+
+協力店・体験記の施設検索（PlaceAutocomplete）に Google Maps API を使用しています。
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
+2. 以下の API を有効化:
+   - **Maps JavaScript API**
+   - **Places API**（※ Places API (New) ではなく旧版）
+3. **認証情報** → API キーを作成
+4. **HTTPリファラー制限**に以下を追加:
+   - 開発: `http://localhost:5173/*`
+   - 本番: `https://yourdomain.com/*`
+5. `.env` に `VITE_GOOGLE_MAPS_API_KEY` を設定
 
 ### データベースセットアップ
 
@@ -165,6 +183,8 @@ npm test           # Vitest テスト
    ```
    VITE_SUPABASE_URL=<your_supabase_url>
    VITE_SUPABASE_ANON_KEY=<your_supabase_anon_key>
+   VITE_STRIPE_PUBLISHABLE_KEY=<your_stripe_publishable_key>
+   VITE_GOOGLE_MAPS_API_KEY=<your_google_maps_api_key>
    ```
 
 ---
