@@ -102,7 +102,7 @@ export class StoryRepository extends BaseRepository<'stories'> {
                 .select(`
                     id, title, excerpt, content, cover_image, location,
                     status, likes, views, created_at,
-                    author:users!stories_author_id_fkey(full_name, email)
+                    author:users!stories_author_id_fkey(first_name, last_name, email)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -112,7 +112,19 @@ export class StoryRepository extends BaseRepository<'stories'> {
 
             const { data, error } = await query;
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const storiesWithAuthor = (data || []).map((s: any) => ({
+                ...s,
+                author: {
+                    full_name: s.author
+                        ? `${s.author.last_name || ''} ${s.author.first_name || ''}`.trim() || '不明'
+                        : '不明',
+                    email: s.author?.email || '',
+                },
+            }));
+
+            return { success: true, data: storiesWithAuthor } as const;
         } catch (error) {
             return {
                 success: false,
