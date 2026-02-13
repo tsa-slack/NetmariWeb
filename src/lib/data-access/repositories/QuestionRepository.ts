@@ -90,7 +90,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
                 .from(this.table)
                 .select(`
                     *,
-                    author:users!questions_author_id_fkey(full_name, email)
+                    author:users!questions_author_id_fkey(first_name, last_name, email)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -117,6 +117,12 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const questionsWithCounts = (questionsData || []).map((q: any) => ({
                 ...q,
+                author: {
+                    full_name: q.author
+                        ? `${q.author.last_name || ''} ${q.author.first_name || ''}`.trim() || '不明'
+                        : '不明',
+                    email: q.author?.email || '',
+                },
                 answer_count: answerCountMap[q.id] || 0,
             }));
 
