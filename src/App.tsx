@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'sonner';
 import LoadingSpinner from './components/LoadingSpinner';
 import ScrollToTop from './components/ScrollToTop';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // --- Lazy-loaded pages ---
 // Public
@@ -90,6 +91,9 @@ function App() {
         <ScrollToTop />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
+            {/* ========================================
+                公開ページ（認証不要）
+               ======================================== */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -98,73 +102,93 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/vehicles" element={<VehiclesPage />} />
             <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
-            <Route path="/vehicles/review" element={<VehicleReviewFormPage />} />
-            <Route path="/rental" element={<RentalPage />} />
-            <Route path="/rental/vehicles" element={<RentalVehicleSelectionPage />} />
-            <Route path="/rental/equipment" element={<RentalEquipmentSelectionPage />} />
-            <Route path="/rental/activities" element={<RentalActivitySelectionPage />} />
-            <Route path="/rental/confirm" element={<RentalConfirmationPage />} />
             <Route path="/partners" element={<PartnersPage />} />
             <Route path="/partners/:id" element={<PartnerDetailPage />} />
-            <Route path="/partners/:id/review" element={<PartnerReviewPage />} />
-            <Route path="/reviews/:id/edit" element={<ReviewEditPage />} />
-            <Route path="/admin/partners/new" element={<PartnerFormPage />} />
-            <Route path="/admin/partners/:id/edit" element={<PartnerFormPage />} />
-            <Route path="/route" element={<RoutePage />} />
-            <Route path="/routes" element={<RoutePage />} />
             <Route path="/portal" element={<PortalPage />} />
             <Route path="/portal/stories" element={<StoriesPage />} />
-            <Route path="/portal/stories/new" element={<StoryFormPage />} />
             <Route path="/portal/stories/:id" element={<StoryDetailPage />} />
-            <Route path="/portal/stories/:id/edit" element={<StoryFormPage />} />
             <Route path="/portal/events" element={<EventsPage />} />
-            <Route path="/portal/events/new" element={<EventFormPage />} />
             <Route path="/portal/events/:id" element={<EventDetailPage />} />
-            <Route path="/portal/events/:id/edit" element={<EventFormPage />} />
             <Route path="/portal/questions" element={<QuestionsPage />} />
             <Route path="/portal/qa" element={<QuestionsPage />} />
-            <Route path="/portal/questions/new" element={<QuestionFormPage />} />
             <Route path="/portal/questions/:id" element={<QuestionDetailPage />} />
-            <Route path="/portal/questions/:id/edit" element={<QuestionFormPage />} />
             <Route path="/portal/announcements" element={<AnnouncementsPage />} />
             <Route path="/portal/news" element={<AnnouncementsPage />} />
-            <Route path="/my" element={<MyPage />} />
-            <Route path="/my-page" element={<MyPage />} />
-            <Route path="/mypage" element={<MyPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin/reservations" element={<ReservationManagementPage />} />
-            <Route path="/admin/users" element={<UserManagementPage />} />
-            <Route path="/admin/vehicles" element={<VehicleManagementPage />} />
-            <Route path="/admin/vehicles/new" element={<VehicleFormPage />} />
-            <Route path="/admin/vehicles/:id/edit" element={<VehicleFormPage />} />
-            <Route path="/admin/sale-vehicles" element={<SaleVehicleManagementPage />} />
-            <Route path="/admin/sale-vehicles/new" element={<SaleVehicleFormPage />} />
-            <Route path="/admin/sale-vehicles/edit/:id" element={<SaleVehicleFormPage />} />
-            <Route path="/admin/equipment" element={<EquipmentManagementPage />} />
-            <Route path="/admin/equipment/new" element={<EquipmentFormPage />} />
-            <Route path="/admin/equipment/:id/edit" element={<EquipmentFormPage />} />
-            <Route path="/admin/partners" element={<PartnerManagementPage />} />
-            <Route path="/admin/activities" element={<ActivityManagementPage />} />
-            <Route path="/admin/stories" element={<StoryManagementPage />} />
-            <Route path="/admin/reviews" element={<ReviewManagementPage />} />
-            <Route path="/admin/questions" element={<QuestionManagementPage />} />
-            <Route path="/admin/contacts" element={<ContactManagementPage />} />
-            <Route path="/admin/categories" element={<CategoryManagementPage />} />
-            <Route path="/admin/content" element={<ContentManagementPage />} />
-            <Route path="/admin/news" element={<NewsManagementPage />} />
-            <Route path="/admin/settings" element={<SystemSettingsPage />} />
-            <Route path="/staff" element={<StaffPage />} />
-            <Route path="/staff/contacts" element={<ContactManagementPage />} />
-            <Route path="/staff/stories" element={<StoryManagementPage />} />
-            <Route path="/staff/reviews" element={<ReviewManagementPage />} />
-            <Route path="/staff/questions" element={<QuestionManagementPage />} />
-            <Route path="/staff/checkout/:id" element={<StaffCheckoutPage />} />
-            <Route path="/staff/return/:id" element={<StaffReturnPage />} />
-            <Route path="/partner/dashboard" element={<PartnerDashboardPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsOfServicePage />} />
+
+            {/* ========================================
+                認証必須ページ（ログインのみ必要）
+               ======================================== */}
+            <Route path="/vehicles/review" element={<ProtectedRoute><VehicleReviewFormPage /></ProtectedRoute>} />
+            <Route path="/rental" element={<ProtectedRoute><RentalPage /></ProtectedRoute>} />
+            <Route path="/rental/vehicles" element={<ProtectedRoute><RentalVehicleSelectionPage /></ProtectedRoute>} />
+            <Route path="/rental/equipment" element={<ProtectedRoute><RentalEquipmentSelectionPage /></ProtectedRoute>} />
+            <Route path="/rental/activities" element={<ProtectedRoute><RentalActivitySelectionPage /></ProtectedRoute>} />
+            <Route path="/rental/confirm" element={<ProtectedRoute><RentalConfirmationPage /></ProtectedRoute>} />
+            <Route path="/partners/:id/review" element={<ProtectedRoute><PartnerReviewPage /></ProtectedRoute>} />
+            <Route path="/reviews/:id/edit" element={<ProtectedRoute><ReviewEditPage /></ProtectedRoute>} />
+            <Route path="/portal/stories/new" element={<ProtectedRoute><StoryFormPage /></ProtectedRoute>} />
+            <Route path="/portal/stories/:id/edit" element={<ProtectedRoute><StoryFormPage /></ProtectedRoute>} />
+            <Route path="/portal/events/new" element={<ProtectedRoute><EventFormPage /></ProtectedRoute>} />
+            <Route path="/portal/events/:id/edit" element={<ProtectedRoute><EventFormPage /></ProtectedRoute>} />
+            <Route path="/portal/questions/new" element={<ProtectedRoute><QuestionFormPage /></ProtectedRoute>} />
+            <Route path="/portal/questions/:id/edit" element={<ProtectedRoute><QuestionFormPage /></ProtectedRoute>} />
+            <Route path="/route" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
+            <Route path="/routes" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
+            <Route path="/my" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+            <Route path="/my-page" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+            <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+
+            {/* ========================================
+                Admin 専用ページ
+               ======================================== */}
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['Admin']}><AdminPage /></ProtectedRoute>} />
+            <Route path="/admin/reservations" element={<ProtectedRoute allowedRoles={['Admin']}><ReservationManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['Admin']}><UserManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/vehicles" element={<ProtectedRoute allowedRoles={['Admin']}><VehicleManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/vehicles/new" element={<ProtectedRoute allowedRoles={['Admin']}><VehicleFormPage /></ProtectedRoute>} />
+            <Route path="/admin/vehicles/:id/edit" element={<ProtectedRoute allowedRoles={['Admin']}><VehicleFormPage /></ProtectedRoute>} />
+            <Route path="/admin/sale-vehicles" element={<ProtectedRoute allowedRoles={['Admin']}><SaleVehicleManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/sale-vehicles/new" element={<ProtectedRoute allowedRoles={['Admin']}><SaleVehicleFormPage /></ProtectedRoute>} />
+            <Route path="/admin/sale-vehicles/edit/:id" element={<ProtectedRoute allowedRoles={['Admin']}><SaleVehicleFormPage /></ProtectedRoute>} />
+            <Route path="/admin/equipment" element={<ProtectedRoute allowedRoles={['Admin']}><EquipmentManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/equipment/new" element={<ProtectedRoute allowedRoles={['Admin']}><EquipmentFormPage /></ProtectedRoute>} />
+            <Route path="/admin/equipment/:id/edit" element={<ProtectedRoute allowedRoles={['Admin']}><EquipmentFormPage /></ProtectedRoute>} />
+            <Route path="/admin/partners" element={<ProtectedRoute allowedRoles={['Admin']}><PartnerManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/partners/new" element={<ProtectedRoute allowedRoles={['Admin']}><PartnerFormPage /></ProtectedRoute>} />
+            <Route path="/admin/partners/:id/edit" element={<ProtectedRoute allowedRoles={['Admin']}><PartnerFormPage /></ProtectedRoute>} />
+            <Route path="/admin/activities" element={<ProtectedRoute allowedRoles={['Admin']}><ActivityManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/stories" element={<ProtectedRoute allowedRoles={['Admin']}><StoryManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/reviews" element={<ProtectedRoute allowedRoles={['Admin']}><ReviewManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/questions" element={<ProtectedRoute allowedRoles={['Admin']}><QuestionManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/contacts" element={<ProtectedRoute allowedRoles={['Admin']}><ContactManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/categories" element={<ProtectedRoute allowedRoles={['Admin']}><CategoryManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/content" element={<ProtectedRoute allowedRoles={['Admin']}><ContentManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/news" element={<ProtectedRoute allowedRoles={['Admin']}><NewsManagementPage /></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['Admin']}><SystemSettingsPage /></ProtectedRoute>} />
+
+            {/* ========================================
+                Staff + Admin ページ
+               ======================================== */}
+            <Route path="/staff" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><StaffPage /></ProtectedRoute>} />
+            <Route path="/staff/contacts" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><ContactManagementPage /></ProtectedRoute>} />
+            <Route path="/staff/stories" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><StoryManagementPage /></ProtectedRoute>} />
+            <Route path="/staff/reviews" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><ReviewManagementPage /></ProtectedRoute>} />
+            <Route path="/staff/questions" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><QuestionManagementPage /></ProtectedRoute>} />
+            <Route path="/staff/checkout/:id" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><StaffCheckoutPage /></ProtectedRoute>} />
+            <Route path="/staff/return/:id" element={<ProtectedRoute allowedRoles={['Admin', 'Staff']}><StaffReturnPage /></ProtectedRoute>} />
+
+            {/* ========================================
+                Partner + Admin ページ
+               ======================================== */}
+            <Route path="/partner/dashboard" element={<ProtectedRoute allowedRoles={['Admin', 'Partners']}><PartnerDashboardPage /></ProtectedRoute>} />
+
+            {/* ========================================
+                フォールバック
+               ======================================== */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
