@@ -566,6 +566,8 @@ CREATE TABLE IF NOT EXISTS events (
   longitude numeric,
   location_type text DEFAULT 'Offline',
   max_participants integer,
+  image_url text,
+  status text DEFAULT 'Upcoming' CHECK (status IN ('Upcoming', 'Ongoing', 'Completed', 'Cancelled')),
   organizer_id uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -874,6 +876,8 @@ ON CONFLICT (key) DO NOTHING;
 -- SCHEMA UPDATES (既存DBへの追加カラム)
 -- ============================================================================
 
--- イベントテーブルに位置情報カラムを追加
+-- イベントテーブルに不足カラムを追加
 ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude numeric;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude numeric;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS image_url text;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS status text DEFAULT 'Upcoming';

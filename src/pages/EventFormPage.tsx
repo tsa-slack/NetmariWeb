@@ -87,14 +87,12 @@ export default function EventFormPage() {
       setLoading(true);
       setShowConfirmModal(false);
 
-      const eventData = {
+      const eventData: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim(),
         event_date: new Date(eventDate).toISOString(),
         end_date: endDate ? new Date(endDate).toISOString() : null,
         location: location.trim() || null,
-        latitude: locationType === 'Offline' ? latitude : null,
-        longitude: locationType === 'Offline' ? longitude : null,
         location_type: locationType,
         max_participants: maxParticipants ? parseInt(maxParticipants) : null,
         image_url: imageUrl.trim() || null,
@@ -103,14 +101,22 @@ export default function EventFormPage() {
         updated_at: new Date().toISOString(),
       };
 
+      // 位置情報がある場合のみ追加（DBカラム未追加時のエラー回避）
+      if (locationType === 'Offline' && latitude != null && longitude != null) {
+        eventData.latitude = latitude;
+        eventData.longitude = longitude;
+      }
+
       if (id) {
-        const result = await eventRepo.update(id, eventData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await eventRepo.update(id, eventData as any);
         if (!result.success) throw result.error;
 
         toast.success('イベントを更新しました');
         navigate(`/portal/events/${id}`);
       } else {
-        const result = await eventRepo.create(eventData);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await eventRepo.create(eventData as any);
         if (!result.success) throw result.error;
 
         toast.success('イベントを作成しました');
