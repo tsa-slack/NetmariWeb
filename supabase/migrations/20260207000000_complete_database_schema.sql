@@ -881,3 +881,72 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude numeric;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude numeric;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS image_url text;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS status text DEFAULT 'Upcoming';
+
+-- ============================================================================
+-- RANK AUTO-UPDATE TRIGGERS（ランク自動更新トリガー）
+-- ============================================================================
+
+-- 1. いいね追加/削除時 → 投稿著者のランクを自動更新
+CREATE OR REPLACE FUNCTION trigger_update_rank_on_like()
+RETURNS TRIGGER AS $$
+DECLARE
+  story_author_id UUID;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    SELECT author_id INTO story_author_id FROM stories WHERE id = OLD.story_id;
+  ELSE
+    SELECT author_id INTO story_author_id FROM stories WHERE id = NEW.story_id;
+  END IF;
+
+  IF story_author_id IS NOT NULL THEN
+    PERFORM update_user_rank(story_author_id);
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_update_rank_on_like ON story_likes;
+CREATE TRIGGER trg_update_rank_on_like
+  AFTER INSERT OR DELETE ON story_likes
+  FOR EACH ROW EXECUTE FUNCTION trigger_update_rank_on_like();
+
+-- 2. 体験記の公開時 → 著者のランクを自動更新
+CREATE OR REPLACE FUNCTION trigger_update_rank_on_story_publish()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- 新規公開 or ステータスが Published に変更されたとき
+  IF NEW.status = 'Published' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'Published') THEN
+    PERFORM update_user_rank(NEW.author_id);
+  END IF;
+  -- 公開取消の場合もランク再計算
+  IF TG_OP = 'UPDATE' AND OLD.status = 'Published' AND NEW.status != 'Published' THEN
+    PERFORM update_user_rank(NEW.author_id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_update_rank_on_story_publish ON stories;
+CREATE TRIGGER trg_update_rank_on_story_publish
+  AFTER INSERT OR UPDATE OF status ON stories
+  FOR EACH ROW EXECUTE FUNCTION trigger_update_rank_on_story_publish();
+
+-- 3. 予約完了時 → ユーザーのランクを自動更新
+CREATE OR REPLACE FUNCTION trigger_update_rank_on_reservation_complete()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'Completed' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'Completed') THEN
+    PERFORM update_user_rank(NEW.user_id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_update_rank_on_reservation_complete ON reservations;
+CREATE TRIGGER trg_update_rank_on_reservation_complete
+  AFTER INSERT OR UPDATE OF status ON reservations
+  FOR EACH ROW EXECUTE FUNCTION trigger_update_rank_on_reservation_complete();
