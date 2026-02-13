@@ -869,3 +869,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 INSERT INTO system_settings (key, value, description, payment_method)
 VALUES ('general', 'true', 'レンタル機能の有効/無効を含むシステム全般設定', 'both')
 ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================================
+-- SCHEMA UPDATES (既存DBへの追加カラム)
+-- ============================================================================
+
+-- イベントテーブルに位置情報カラムを追加
+ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude numeric;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude numeric;
