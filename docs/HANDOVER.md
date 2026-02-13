@@ -204,7 +204,8 @@ NetmariWeb/
 │       ├── database.types.ts    # DB型定義（supabase gen types で生成）
 │       ├── logger.ts            # ログユーティリティ
 │       ├── handleError.ts       # エラーハンドリング
-│       ├── imageUpload.ts       # 画像アップロードユーティリティ
+│       ├── imageUpload.ts       # 画像アップロード（最適化込み）
+│       ├── imageOptimize.ts     # 画像リサイズ・WebP圧縮（Canvas API）
 │       ├── schemas.ts           # Zod バリデーションスキーマ
 │       └── data-access/         # データアクセス層（37ファイル）
 │           ├── base/
@@ -843,7 +844,7 @@ npm run test:watch # ウォッチモード
 | ~~1~~ | ~~ルートガードの不在~~ | ~~高~~ | ✅ **解決済み** — `ProtectedRoute` コンポーネントで全保護ルートにガード適用（2026-02-14） |
 | 2 | 管理画面の直接Supabase呼び出し | 中 | 一部の管理ページがRepositoryを使わず直接supabase clientを呼び出している |
 | 3 | エラーハンドリングの一貫性 | 中 | ページによってエラーハンドリングのパターンが異なる |
-| 4 | 画像最適化 | 低 | アップロード画像のリサイズ・圧縮が未実装 |
+| ~~4~~ | ~~画像最適化~~ | ~~低~~ | ✅ **解決済み** — Canvas API でリサイズ（最大1920px）+ WebP圧縮（品質0.85）を自動適用（2026-02-14） |
 | 5 | i18n（多言語対応） | 低 | 現在は日本語のみ。categories テーブルに `label_en` は用意済み |
 
 ### 機能面の改善候補
@@ -877,4 +878,5 @@ npm run test:watch # ウォッチモード
 | 日付 | 著者 | 内容 |
 |---|---|---|
 | 2026-02-11 | 吉田 浩樹 | 初版作成 |
-| 2026-02-14 | AI | ルートガード実装・ProtectedRoute 追加 |
+| 2026-02-14 | 吉田 浩樹 | ルートガード実装・ProtectedRoute 追加 |
+| 2026-02-14 | AI | 画像最適化（リサイズ+WebP圧縮）追加 |
