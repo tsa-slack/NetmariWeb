@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { optimizeImage } from './imageOptimize';
 
 export interface UploadResult {
   url: string;
@@ -10,13 +11,16 @@ export const uploadImage = async (
   bucket: 'images' | 'vehicles' | 'avatars',
   folder?: string
 ): Promise<UploadResult> => {
-  const fileExt = file.name.split('.').pop();
+  // アップロード前に画像を最適化（リサイズ + WebP圧縮）
+  const optimizedFile = await optimizeImage(file);
+
+  const fileExt = optimizedFile.name.split('.').pop();
   const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
   const filePath = folder ? `${folder}/${fileName}` : fileName;
 
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from(bucket)
-    .upload(filePath, file, {
+    .upload(filePath, optimizedFile, {
       cacheControl: '3600',
       upsert: false,
     });
