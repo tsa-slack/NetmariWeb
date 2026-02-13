@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { Calendar, MapPin, Users, Plus, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 import { EventRepository, useQuery, useRepository } from '../lib/data-access';
 import { supabase } from '../lib/supabase';
 import type { Row } from '../lib/data-access/base/types';
@@ -20,8 +20,7 @@ type Event = Row<'events'> & {
 };
 
 export default function EventsPage() {
-  const { user, isAdmin, isStaff, loading: authLoading } = useAuth();
-  const canCreateEvent = isAdmin || isStaff;
+  const { user, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<string>('all');
   
   // リポジトリインスタンスを作成
@@ -136,20 +135,9 @@ export default function EventsPage() {
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">イベント</h1>
-            <p className="text-gray-600">コミュニティのイベントを探して参加しよう</p>
-          </div>
-          {canCreateEvent && (
-            <Link
-              to="/portal/events/new"
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              イベントを作成
-            </Link>
-          )}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">イベント</h1>
+          <p className="text-gray-600">コミュニティのイベントを探して参加しよう</p>
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
@@ -190,16 +178,7 @@ export default function EventsPage() {
         ) : filteredEvents.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">イベントがありません</p>
-            {canCreateEvent && (
-              <Link
-                to="/portal/events/new"
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                最初のイベントを作成
-              </Link>
-            )}
+            <p className="text-gray-600">イベントがありません</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
