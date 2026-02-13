@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import ImageUpload from '../components/ImageUpload';
+import PlaceAutocomplete from '../components/PlaceAutocomplete';
 import { useQuery, useRepository, EventRepository } from '../lib/data-access';
 import { toast } from 'sonner';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -132,8 +133,8 @@ export default function EventFormPage() {
     <Layout>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6">
-          <Link to="/portal/events" className="text-blue-600 hover:text-blue-700">
-            ← イベント一覧に戻る
+          <Link to={id ? `/portal/events/${id}` : '/admin'} className="text-blue-600 hover:text-blue-700">
+            ← {id ? 'イベントに戻る' : 'ダッシュボードに戻る'}
           </Link>
         </div>
 
@@ -221,14 +222,26 @@ export default function EventFormPage() {
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
                 場所
               </label>
-              <input
-                id="location"
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={locationType === 'Online' ? '例：Zoom' : '例：東京都渋谷区'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              {locationType === 'Offline' ? (
+                <PlaceAutocomplete
+                  id="location"
+                  defaultValue={location}
+                  placeholder="施設名や住所を入力して検索"
+                  onPlaceSelect={(place) => {
+                    setLocation(place.address || place.name);
+                    if (!isDirty) setIsDirty(true);
+                  }}
+                />
+              ) : (
+                <input
+                  id="location"
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="例：Zoom、Google Meet など"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              )}
             </div>
 
             <div>
@@ -282,7 +295,7 @@ export default function EventFormPage() {
                 {loading ? '保存中...' : id ? '更新する' : '作成する'}
               </button>
               <Link
-                to="/portal/events"
+                to={id ? `/portal/events/${id}` : '/admin'}
                 className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center"
               >
                 キャンセル

@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import {
@@ -6,6 +6,10 @@ import {
   Car,
   MapPin,
   BookOpen,
+  Calendar,
+  Plus,
+  Settings,
+  MessageSquare,
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import {
@@ -13,6 +17,7 @@ import {
   PartnerRepository,
   ReservationRepository,
   StoryRepository,
+  EventRepository,
   useQuery,
   useRepository,
 } from '../lib/data-access';
@@ -25,6 +30,7 @@ export default function AdminPage() {
   const partnerRepo = useRepository(PartnerRepository);
   const reservationRepo = useRepository(ReservationRepository);
   const storyRepo = useRepository(StoryRepository);
+  const eventRepo = useRepository(EventRepository);
 
   // 統計情報を取得
   const { data: totalUsers } = useQuery<number>(
@@ -44,6 +50,11 @@ export default function AdminPage() {
 
   const { data: totalStories } = useQuery<number>(
     async () => storyRepo.count(),
+    { enabled: !!(user && (isAdmin || isStaff)) }
+  );
+
+  const { data: totalEvents } = useQuery<number>(
+    async () => eventRepo.count(),
     { enabled: !!(user && (isAdmin || isStaff)) }
   );
 
@@ -102,8 +113,71 @@ export default function AdminPage() {
               </div>
               <p className="text-teal-100">投稿された体験記</p>
             </div>
+
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-2">
+                <Calendar className="h-8 w-8 opacity-80" />
+                <span className="text-3xl font-bold">{totalEvents || 0}</span>
+              </div>
+              <p className="text-purple-100">イベント数</p>
+            </div>
           </div>
         )}
+
+        {/* クイックアクション */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">クイックアクション</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link
+              to="/portal/events/new"
+              className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100 group"
+            >
+              <div className="p-3 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-200 transition">
+                <Plus className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">イベント作成</p>
+                <p className="text-sm text-gray-500">新しいイベントを登録</p>
+              </div>
+            </Link>
+            <Link
+              to="/admin/vehicles/new"
+              className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100 group"
+            >
+              <div className="p-3 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-200 transition">
+                <Car className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">車両登録</p>
+                <p className="text-sm text-gray-500">新しいレンタル車両を追加</p>
+              </div>
+            </Link>
+            <Link
+              to="/admin/contacts"
+              className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100 group"
+            >
+              <div className="p-3 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-200 transition">
+                <MessageSquare className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">お問い合わせ</p>
+                <p className="text-sm text-gray-500">お問い合わせを確認</p>
+              </div>
+            </Link>
+            <Link
+              to="/admin/settings"
+              className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100 group"
+            >
+              <div className="p-3 bg-gray-100 text-gray-600 rounded-lg group-hover:bg-gray-200 transition">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800">システム設定</p>
+                <p className="text-sm text-gray-500">各種設定を変更</p>
+              </div>
+            </Link>
+          </div>
+        </div>
       </div>
     </AdminLayout>
   );
