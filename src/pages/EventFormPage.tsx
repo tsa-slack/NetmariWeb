@@ -34,6 +34,8 @@ export default function EventFormPage() {
   const [eventDate, setEventDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [locationType, setLocationType] = useState('Offline');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -56,6 +58,8 @@ export default function EventFormPage() {
         setEventDate(data.event_date.slice(0, 16));
         setEndDate(data.end_date ? data.end_date.slice(0, 16) : '');
         setLocation(data.location || '');
+        setLatitude(data.latitude ?? null);
+        setLongitude(data.longitude ?? null);
         setLocationType(data.location_type || 'Offline');
         setMaxParticipants(data.max_participants?.toString() || '');
         setImageUrl(data.image_url || '');
@@ -89,6 +93,8 @@ export default function EventFormPage() {
         event_date: new Date(eventDate).toISOString(),
         end_date: endDate ? new Date(endDate).toISOString() : null,
         location: location.trim() || null,
+        latitude: locationType === 'Offline' ? latitude : null,
+        longitude: locationType === 'Offline' ? longitude : null,
         location_type: locationType,
         max_participants: maxParticipants ? parseInt(maxParticipants) : null,
         image_url: imageUrl.trim() || null,
@@ -229,6 +235,8 @@ export default function EventFormPage() {
                   placeholder="施設名や住所を入力して検索"
                   onPlaceSelect={(place) => {
                     setLocation(place.address || place.name);
+                    setLatitude(place.latitude);
+                    setLongitude(place.longitude);
                     if (!isDirty) setIsDirty(true);
                   }}
                 />

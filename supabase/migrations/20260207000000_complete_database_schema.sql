@@ -562,6 +562,8 @@ CREATE TABLE IF NOT EXISTS events (
   event_date timestamptz NOT NULL,
   end_date timestamptz,
   location text,
+  latitude numeric,
+  longitude numeric,
   location_type text DEFAULT 'Offline',
   max_participants integer,
   organizer_id uuid REFERENCES users(id) ON DELETE SET NULL,
