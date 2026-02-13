@@ -48,10 +48,10 @@ export default function PartnerActivitiesTab({ activities }: PartnerActivitiesTa
                 <img
                   src={activity.images[0] as string}
                   alt={activity.name}
-                  className="w-full h-48 object-cover"
+                  className="w-full h-72 object-cover"
                 />
               ) : (
-                <div className="w-full h-48 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                <div className="w-full h-72 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <Activity className="h-16 w-16 text-white opacity-50" />
                 </div>
               )}

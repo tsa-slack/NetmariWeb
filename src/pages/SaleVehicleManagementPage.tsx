@@ -206,7 +206,7 @@ export default function SaleVehicleManagementPage() {
                   key={vehicle.id}
                   className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
                 >
-                  <div className="h-48 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center relative">
+                  <div className="h-56 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center relative">
                     {vehicle.images &&
                     Array.isArray(vehicle.images) &&
                     vehicle.images.length > 0 ? (

@@ -187,11 +187,11 @@ export default function PartnerManagementPage() {
                 >
                   {Array.isArray(partner.images) && partner.images.length > 0 ? (
                     <div
-                      className="w-full h-48 bg-cover bg-center"
+                      className="w-full h-56 bg-cover bg-center"
                       style={{ backgroundImage: `url(${partner.images[0]})` }}
                     />
                   ) : (
-                    <div className="w-full h-48 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <div className="w-full h-56 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                       <MapPin className="h-16 w-16 text-white opacity-50" />
                     </div>
                   )}

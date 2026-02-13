@@ -164,11 +164,11 @@ export default function PartnersPage() {
                   >
                     {images.length > 0 ? (
                       <div
-                        className="h-48 bg-cover bg-center"
+                        className="h-72 bg-cover bg-center"
                         style={{ backgroundImage: `url(${images[0]})` }}
                       />
                     ) : (
-                      <div className="h-48 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                      <div className="h-72 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                         <MapPin className="h-20 w-20 text-white" />
                       </div>
                     )}

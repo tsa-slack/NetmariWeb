@@ -45,9 +45,9 @@ export default function StoriesTab({ myStories, storiesLoading }: StoriesTabProp
               className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
             >
               {story.cover_image ? (
-                <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${story.cover_image})` }} />
+                <div className="h-72 bg-cover bg-center" style={{ backgroundImage: `url(${story.cover_image})` }} />
               ) : (
-                <div className="h-48 bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                <div className="h-72 bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
                   <BookOpen className="h-20 w-20 text-white" />
                 </div>
               )}

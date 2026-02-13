@@ -104,9 +104,9 @@ export default function FavoritesTab({
                       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
                     >
                       {images.length > 0 ? (
-                        <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${images[0]})` }} />
+                        <div className="h-72 bg-cover bg-center" style={{ backgroundImage: `url(${images[0]})` }} />
                       ) : (
-                        <div className="h-48 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                        <div className="h-72 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                           <MapPin className="h-20 w-20 text-white opacity-50" />
                         </div>
                       )}
@@ -166,9 +166,9 @@ export default function FavoritesTab({
                       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
                     >
                       {images.length > 0 ? (
-                        <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${images[0]})` }} />
+                        <div className="h-72 bg-cover bg-center" style={{ backgroundImage: `url(${images[0]})` }} />
                       ) : (
-                        <div className="h-48 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                        <div className="h-72 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                           <Car className="h-20 w-20 text-white opacity-50" />
                         </div>
                       )}
@@ -219,9 +219,9 @@ export default function FavoritesTab({
                       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition"
                     >
                       {story?.cover_image ? (
-                        <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${story.cover_image})` }} />
+                        <div className="h-72 bg-cover bg-center" style={{ backgroundImage: `url(${story.cover_image})` }} />
                       ) : (
-                        <div className="h-48 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <div className="h-72 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                           <BookOpen className="h-20 w-20 text-white opacity-50" />
                         </div>
                       )}

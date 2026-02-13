@@ -270,7 +270,7 @@ export default function VehicleManagementPage() {
                       <img
                         src={firstImage}
                         alt={vehicle.vehicle.name}
-                        className="w-full h-48 object-cover"
+                        className="w-full h-56 object-cover"
                       />
                     )}
 

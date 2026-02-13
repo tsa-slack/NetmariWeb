@@ -211,11 +211,11 @@ export default function EventsPage() {
               >
                 {event.image_url ? (
                   <div
-                    className="h-48 bg-cover bg-center"
+                    className="h-72 bg-cover bg-center"
                     style={{ backgroundImage: `url(${event.image_url})` }}
                   />
                 ) : (
-                  <div className="h-48 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <div className="h-72 bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
                     <Calendar className="h-20 w-20 text-white" />
                   </div>
                 )}

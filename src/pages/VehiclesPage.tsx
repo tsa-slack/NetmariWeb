@@ -61,7 +61,7 @@ export default function VehiclesPage() {
                 className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition group"
               >
                 {vehicle.images && Array.isArray(vehicle.images) && (vehicle.images as string[]).length > 0 ? (
-                  <div className="h-64">
+                  <div className="h-80">
                     <img
                       src={(vehicle.images as string[])[0]}
                       alt={vehicle.name || '車両'}
@@ -69,7 +69,7 @@ export default function VehiclesPage() {
                     />
                   </div>
                 ) : (
-                  <div className="h-64 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                  <div className="h-80 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                     <Car className="h-20 w-20 text-white" />
                   </div>
                 )}

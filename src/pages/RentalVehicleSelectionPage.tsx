@@ -116,11 +116,11 @@ export default function RentalVehicleSelectionPage() {
                 >
                   {images.length > 0 ? (
                     <div
-                      className="h-48 bg-cover bg-center"
+                      className="h-72 bg-cover bg-center"
                       style={{ backgroundImage: `url(${images[0]})` }}
                     />
                   ) : (
-                    <div className="h-48 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <div className="h-72 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                       <Car className="h-20 w-20 text-white" />
                     </div>
                   )}

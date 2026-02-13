@@ -88,16 +88,16 @@ export default function StoriesPage() {
               >
                 {story.cover_image ? (
                   <div
-                    className="h-48 bg-cover bg-center"
+                    className="h-72 bg-cover bg-center"
                     style={{ backgroundImage: `url(${story.cover_image})` }}
                   />
                 ) : story.images && Array.isArray(story.images) && (story.images as string[]).length > 0 ? (
                   <div
-                    className="h-48 bg-cover bg-center"
+                    className="h-72 bg-cover bg-center"
                     style={{ backgroundImage: `url(${(story.images as string[])[0]})` }}
                   />
                 ) : (
-                  <div className="h-48 bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+                  <div className="h-72 bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
                     <BookOpen className="h-20 w-20 text-white" />
                   </div>
                 )}
