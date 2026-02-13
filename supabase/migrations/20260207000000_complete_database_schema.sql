@@ -311,12 +311,16 @@ CREATE TABLE IF NOT EXISTS activities (
   price numeric,
   price_type text,
   duration text,
+  duration_minutes integer,
   location text,
   provider text,
+  partner_id uuid REFERENCES partners(id) ON DELETE SET NULL,
   start_date date,
   end_date date,
   min_participants integer,
   max_participants integer,
+  difficulty_level text DEFAULT 'Beginner',
+  available_seasons jsonb DEFAULT '[]'::jsonb,
   images jsonb DEFAULT '[]'::jsonb,
   tags jsonb DEFAULT '[]'::jsonb,
   included jsonb DEFAULT '[]'::jsonb,
@@ -881,6 +885,12 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude numeric;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude numeric;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS image_url text;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS status text DEFAULT 'Upcoming';
+
+-- アクティビティテーブルに不足カラムを追加
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS partner_id uuid REFERENCES partners(id) ON DELETE SET NULL;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS duration_minutes integer;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS difficulty_level text DEFAULT 'Beginner';
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS available_seasons jsonb DEFAULT '[]'::jsonb;
 
 -- ============================================================================
 -- RANK AUTO-UPDATE TRIGGERS（ランク自動更新トリガー）
