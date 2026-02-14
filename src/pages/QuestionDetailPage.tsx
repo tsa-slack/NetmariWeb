@@ -29,10 +29,11 @@ type Answer = Database['public']['Tables']['answers']['Row'] & {
 export default function QuestionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin, isStaff } = useAuth();
   const [answerContent, setAnswerContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const isAdminOrStaff = isAdmin || isStaff;
 
   // リポジトリインスタンスを作成
   const questionRepo = useRepository(QuestionRepository);
@@ -109,17 +110,18 @@ export default function QuestionDetailPage() {
     }
   };
 
-  const handleMarkAsResolved = async () => {
+  const handleUpdateStatus = async (newStatus: string) => {
     try {
       const { error } = await (supabase
         .from('questions'))
-        .update({ status: 'Resolved' })
+        .update({ status: newStatus })
         .eq('id', id!);
 
       if (error) throw error;
 
-      refetchQuestion(); // useQueryのrefetchを使用
-      toast.success('質問を解決済みにしました');
+      refetchQuestion();
+      const statusLabels: Record<string, string> = { 'Resolved': '解決済み', 'Open': '未解決', 'Closed': 'クローズ' };
+      toast.success(`質問を${statusLabels[newStatus] || newStatus}にしました`);
     } catch (error) {
       handleError(error, '更新に失敗しました');
     }
@@ -140,7 +142,7 @@ export default function QuestionDetailPage() {
       if (error) throw error;
 
       refetchAnswers(); // useQueryのrefetchを使用
-      handleMarkAsResolved();
+      handleUpdateStatus('Resolved');
     } catch (error) {
       handleError(error, 'ベストアンサーの設定に失敗しました');
     }
@@ -156,7 +158,7 @@ export default function QuestionDetailPage() {
       if (error) throw error;
 
       toast.success('質問を削除しました');
-      navigate('/portal/questions');
+      navigate(isAdminOrStaff ? '/admin/questions' : '/portal/questions');
     } catch (error) {
       handleError(error, '質問の削除に失敗しました');
     }
@@ -193,15 +195,21 @@ export default function QuestionDetailPage() {
     return <Navigate to="/portal/questions" replace />;
   }
 
-  const isAuthor = user && question.author && (question.author as { user_id?: string }).user_id === user.id;
+  const isAuthor = user && question.author_id === user.id;
+  const canManage = isAuthor || isAdminOrStaff;
 
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-4">
           <Link to="/portal/questions" className="text-blue-600 hover:text-blue-700">
             ← Q&A一覧に戻る
           </Link>
+          {isAdminOrStaff && (
+            <Link to="/admin/questions" className="text-gray-500 hover:text-gray-700 text-sm">
+              ← 質問管理に戻る
+            </Link>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
@@ -243,23 +251,34 @@ export default function QuestionDetailPage() {
             </div>
 
             <div className="flex items-center space-x-2">
-              {isAuthor && (
+              {canManage && (
                 <>
                   {question.status === 'Open' && (
                     <button
-                      onClick={handleMarkAsResolved}
+                      onClick={() => handleUpdateStatus('Resolved')}
                       className="p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
                       title="解決済みにする"
                     >
                       <CheckCircle className="h-6 w-6" />
                     </button>
                   )}
-                  <Link
-                    to={`/portal/questions/${question.id}/edit`}
-                    className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    <Edit className="h-6 w-6" />
-                  </Link>
+                  {question.status === 'Resolved' && isAdminOrStaff && (
+                    <button
+                      onClick={() => handleUpdateStatus('Open')}
+                      className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      title="未解決に戻す"
+                    >
+                      <MessageCircle className="h-6 w-6" />
+                    </button>
+                  )}
+                  {isAuthor && (
+                    <Link
+                      to={`/portal/questions/${question.id}/edit`}
+                      className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    >
+                      <Edit className="h-6 w-6" />
+                    </Link>
+                  )}
                   <button
                     onClick={() => setShowDeleteModal(true)}
                     className="p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
@@ -321,7 +340,7 @@ export default function QuestionDetailPage() {
                         </div>
                       </div>
                     </div>
-                    {isAuthor && !answer.is_accepted && question.status === 'Open' && (
+                    {canManage && !answer.is_accepted && question.status === 'Open' && (
                       <button
                         onClick={() => handleAcceptAnswer(answer.id)}
                         className="ml-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
@@ -336,9 +355,16 @@ export default function QuestionDetailPage() {
           )}
         </div>
 
-        {question.status === 'Open' && (
+        {(question.status === 'Open' || isAdminOrStaff) && (
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">回答を投稿</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              {isAdminOrStaff && question.status !== 'Open' ? '管理者として回答を投稿' : '回答を投稿'}
+            </h2>
+            {isAdminOrStaff && question.status !== 'Open' && (
+              <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                この質問は{question.status === 'Resolved' ? '解決済み' : 'クローズ'}ですが、管理者として回答できます。
+              </p>
+            )}
             <form onSubmit={handleSubmitAnswer}>
               <textarea
                 value={answerContent}
