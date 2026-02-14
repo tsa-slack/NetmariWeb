@@ -383,18 +383,42 @@ export default function RentalPage() {
               </div>
             </div>
 
-            {startDate && endDate && new Date(startDate) < new Date(endDate) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-blue-800">
-                  利用期間:{' '}
-                  {Math.ceil(
-                    (new Date(endDate).getTime() - new Date(startDate).getTime()) /
-                      (1000 * 60 * 60 * 24)
+            {startDate && endDate && new Date(startDate) < new Date(endDate) && (() => {
+              const days = Math.ceil(
+                (new Date(endDate).getTime() - new Date(startDate).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+              const maxDays = settings.max_rental_days || 14;
+              return (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-blue-800">
+                      利用期間: {days}日間
+                    </p>
+                  </div>
+                  {days > maxDays && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-yellow-800 font-semibold">
+                          レンタル可能な連続日数（{maxDays}日間）を超えています
+                        </p>
+                        <p className="text-yellow-700 text-sm mt-1">
+                          {maxDays}日間を超える長期レンタルをご希望の場合は、事前にお問い合わせください。
+                          別途ご相談の上、対応させていただきます。
+                        </p>
+                        <Link
+                          to="/contact"
+                          className="inline-block mt-2 text-sm text-yellow-800 underline hover:text-yellow-900 font-medium"
+                        >
+                          お問い合わせはこちら →
+                        </Link>
+                      </div>
+                    </div>
                   )}
-                  日間
-                </p>
-              </div>
-            )}
+                </>
+              );
+            })()}
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">

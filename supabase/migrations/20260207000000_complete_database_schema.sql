@@ -876,6 +876,10 @@ INSERT INTO system_settings (key, value, description, payment_method)
 VALUES ('general', 'true', 'レンタル機能の有効/無効を含むシステム全般設定', 'both')
 ON CONFLICT (key) DO NOTHING;
 
+INSERT INTO system_settings (key, value, description)
+VALUES ('max_rental_days', '14', 'レンタル可能な最大連続日数')
+ON CONFLICT (key) DO NOTHING;
+
 -- ============================================================================
 -- SCHEMA UPDATES (既存DBへの追加カラム)
 -- ============================================================================

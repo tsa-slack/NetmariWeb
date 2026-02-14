@@ -6,6 +6,7 @@ interface SystemSettings {
   rental_enabled: boolean;
   partner_registration_enabled: boolean;
   user_registration_enabled: boolean;
+  max_rental_days: number;
   hero_image_url: string;
   hero_title: string;
   hero_subtitle: string;
@@ -29,6 +30,7 @@ export function useSystemSettings() {
     rental_enabled: true,
     partner_registration_enabled: true,
     user_registration_enabled: true,
+    max_rental_days: 14,
     hero_image_url: '',
     hero_title: 'どこでも、寝泊まりを。',
     hero_subtitle: '車中泊に特化したキャンピングカーコミュニティサービス',
@@ -41,12 +43,15 @@ export function useSystemSettings() {
   useEffect(() => {
     if (settingsData) {
       const booleanKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
+      const numberKeys = ['max_rental_days'];
       const enumKeys = ['payment_method'];
       const newSettings: Partial<SystemSettings> = {};
       Object.entries(settingsData).forEach(([key, value]) => {
         if (key in settings) {
           if (booleanKeys.includes(key)) {
             (newSettings as Record<string, unknown>)[key] = value === 'true';
+          } else if (numberKeys.includes(key)) {
+            (newSettings as Record<string, unknown>)[key] = parseInt(value, 10) || 0;
           } else if (enumKeys.includes(key)) {
             (newSettings as Record<string, unknown>)[key] = value || 'both';
           } else {

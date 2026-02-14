@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import AdminLayout from '../components/AdminLayout';
-import { Settings, Save, AlertCircle, CheckCircle, Info, Award, CreditCard, Banknote } from 'lucide-react';
+import { Settings, Save, AlertCircle, CheckCircle, Info, Award, CreditCard, Banknote, Calendar } from 'lucide-react';
 import { useQuery, SystemSettingsRepository } from '../lib/data-access';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
@@ -79,9 +79,9 @@ export default function SystemSettingsPage() {
     setSaveSuccess(false);
 
     try {
-      // 通常の設定を保存
+      // 通常の設定を保存（upsertで新規キーも作成可能）
       for (const setting of settings) {
-        const result = await settingsRepo.updateByKey(setting.key, setting.value);
+        const result = await settingsRepo.upsertByKey(setting.key, setting.value, setting.description || '');
         if (!result.success) throw result.error;
       }
 
@@ -282,6 +282,39 @@ export default function SystemSettingsPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* レンタル最大日数設定 */}
+              <div className="p-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+                  レンタル可能な連続日数
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  ユーザーが予約できる最大連続日数を設定します。この日数を超える場合、ユーザーに注意メッセージが表示されます。
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={settings.find(s => s.key === 'max_rental_days')?.value || '14'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const existing = settings.find(s => s.key === 'max_rental_days');
+                      if (existing) {
+                        setSettings(settings.map(s => s.key === 'max_rental_days' ? { ...s, value: val } : s));
+                      } else {
+                        setSettings([...settings, { id: 'max_rental_days', key: 'max_rental_days', value: val, description: 'レンタル可能な最大連続日数', updated_at: null }]);
+                      }
+                    }}
+                    className="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg font-semibold"
+                  />
+                  <span className="text-gray-700 font-medium">日間</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  ※ 設定日数を超えるレンタル期間を選択した場合、お問い合わせを促すメッセージが表示されます。予約自体はブロックされません。
+                </p>
               </div>
 
               <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
