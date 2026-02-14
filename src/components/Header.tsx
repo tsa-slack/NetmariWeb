@@ -123,12 +123,14 @@ export default function Header() {
                 >
                   ログイン
                 </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  新規登録
-                </Link>
+                {settings.user_registration_enabled && (
+                  <Link
+                    to="/register"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    新規登録
+                  </Link>
+                )}
               </div>
             )}
           </div>
@@ -222,13 +224,15 @@ export default function Header() {
                 >
                   ログイン
                 </Link>
-                <Link
-                  to="/register"
-                  className="block py-2 text-blue-600 hover:text-blue-700 font-semibold"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  新規登録
-                </Link>
+                {settings.user_registration_enabled && (
+                  <Link
+                    to="/register"
+                    className="block py-2 text-blue-600 hover:text-blue-700 font-semibold"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    新規登録
+                  </Link>
+                )}
               </>
             )}
           </div>

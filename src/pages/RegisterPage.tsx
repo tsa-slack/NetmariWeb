@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { UserPlus, Eye, EyeOff, Search, CheckCircle, XCircle, Mail } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useSystemSettings } from '../hooks/useSystemSettings';
 import Layout from '../components/Layout';
 import { registerSchema, RegisterFormData } from '../lib/schemas';
 import { logger } from '../lib/logger';
@@ -18,6 +19,7 @@ export default function RegisterPage() {
   const [submittedEmail, setSubmittedEmail] = useState('');
 
   const { signUp } = useAuth();
+  const { settings, loading: settingsLoading } = useSystemSettings();
   const navigate = useNavigate();
 
   const {
@@ -133,6 +135,47 @@ export default function RegisterPage() {
                   メールが届かない場合は、迷惑メールフォルダをご確認ください。
                   それでも届かない場合は、カスタマーサポートまでお問い合わせください。
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ユーザー登録機能が無効の場合
+  if (!settingsLoading && !settings.user_registration_enabled) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">
+          <div className="max-w-md w-full">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="text-center mb-6">
+                <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                  <XCircle className="w-10 h-10 text-yellow-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  新規登録を一時停止中
+                </h2>
+                <p className="text-gray-600">
+                  現在、新規ユーザー登録を一時的に停止しております。
+                  再開までしばらくお待ちください。
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Link
+                  to="/login"
+                  className="block w-full text-center bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                  ログインページへ
+                </Link>
+                <Link
+                  to="/contact"
+                  className="block w-full text-center bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition font-medium"
+                >
+                  お問い合わせ
+                </Link>
               </div>
             </div>
           </div>
