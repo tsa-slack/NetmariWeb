@@ -41,8 +41,9 @@ export default function RentalPaymentForm({
   error,
   paymentMethodSetting = 'both',
 }: RentalPaymentFormProps) {
-  const showCard = paymentMethodSetting === 'both' || paymentMethodSetting === 'card_only';
-  const showCash = paymentMethodSetting === 'both' || paymentMethodSetting === 'cash_only';
+  const stripeAvailable = !!(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+  const showCard = stripeAvailable && (paymentMethodSetting === 'both' || paymentMethodSetting === 'card_only');
+  const showCash = paymentMethodSetting === 'both' || paymentMethodSetting === 'cash_only' || !stripeAvailable;
   const defaultMethod = showCard ? 'CreditCard' : 'OnSite';
   const [paymentMethod, setPaymentMethod] = useState<'CreditCard' | 'OnSite'>(defaultMethod);
   const [cardName, setCardName] = useState('');
@@ -64,9 +65,11 @@ export default function RentalPaymentForm({
       setStripeError('');
 
       try {
-        const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+        const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_PUBLIC_KEY;
         if (!stripePublicKey) {
-          setStripeError('決済システムが設定されていません');
+          // Stripeキー未設定時は現地決済のみ利用可能にする
+          logger.warn('Stripe公開キーが設定されていません。現地決済のみ利用可能です。');
+          setPaymentMethod('OnSite');
           setStripeLoading(false);
           return;
         }
