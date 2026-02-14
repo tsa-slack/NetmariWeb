@@ -315,10 +315,11 @@ erDiagram
 | `content` | text | ✅ | 内容 |
 | `category` | text | | カテゴリ |
 | `author_id` | uuid FK | | → users |
-| `status` | text | | Open / Closed |
+| `status` | text | | Open / Resolved / Closed |
 | `views` | integer | | 閲覧数 |
+| `answer_count` | integer | | 回答数 |
 
-**RLS**: 全員閲覧可 / 認証ユーザーが投稿・自分のを編集削除可
+**RLS**: 全員閲覧可 / 認証ユーザーが投稿・自分のを編集削除可 / Admin・Staff は全質問のステータス変更・削除可
 
 #### answers
 
@@ -494,7 +495,23 @@ erDiagram
 | `rank_settings` | jsonb | ランクシステム設定 |
 | `updated_by` | uuid FK | → users（更新者） |
 
-**RLS**: 全員閲覧可 / Admin のみ更新可
+**RLS**: 全員閲覧可 / Admin のみ更新・挿入可
+
+**登録済み設定キー（初期データ）**:
+
+| key | デフォルト値 | 説明 |
+|-----|-------------|------|
+| `rental_enabled` | `true` | レンタル機能の有効/無効 |
+| `partner_registration_enabled` | `true` | 協力店登録機能の有効/無効 |
+| `user_registration_enabled` | `true` | ユーザー登録機能の有効/無効 |
+| `max_rental_days` | `14` | レンタル可能な最大連続日数 |
+| `payment_method` | `both` | 支払い方法（both / card_only / cash_only） |
+| `hero_image_url` | _(空)_ | トップページヒーロー画像URL |
+| `hero_title` | `どこでも、寝泊まりを。` | トップページタイトル |
+| `hero_subtitle` | _(デフォルト文)_ | トップページサブタイトル |
+| `rental_intro_title` | `車中泊レンタルの魅力` | レンタル紹介タイトル |
+| `rental_intro_description` | _(デフォルト文)_ | レンタル紹介説明文 |
+| `faq_items` | _(空)_ | FAQアイテム |
 
 ---
 
@@ -571,4 +588,4 @@ supabase db push
 
 ---
 
-**最終更新**: 2026-02-08
+**最終更新**: 2026-02-14
