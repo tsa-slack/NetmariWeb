@@ -278,7 +278,7 @@ export default function QuestionManagementPage() {
 
                 <div className="flex flex-wrap gap-2 mt-4">
                   <Link
-                    to={`/questions/${question.id}`}
+                    to={`/portal/questions/${question.id}`}
                     className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition flex items-center text-sm"
                   >
                     <Eye className="h-4 w-4 mr-2" />
