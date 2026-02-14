@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2, MapPin } from 'lucide-react';
+import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2, MapPin, ExternalLink } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
 import { RentalFlowRepository } from '../lib/data-access/repositories';
@@ -224,10 +224,16 @@ export default function RentalActivitySelectionPage() {
                                 {activity.partner.name}
                               </p>
                               {activity.partner.address && (
-                                <p className="text-sm text-gray-500 flex items-center mt-1">
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.partner.address)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-blue-500 hover:text-blue-700 flex items-center mt-1 group transition"
+                                >
                                   <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                                  {activity.partner.address}
-                                </p>
+                                  <span className="group-hover:underline">{activity.partner.address}</span>
+                                  <ExternalLink className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </a>
                               )}
                             </div>
                           )}
