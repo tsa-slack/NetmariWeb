@@ -40,7 +40,7 @@ export default function QuestionDetailPage() {
   const answerRepo = useRepository(AnswerRepository);
 
   // 質問を取得
-  const { data: question, loading, error, refetch: refetchQuestion } = useQuery<Question | null>(
+  const { data: question, loading: questionLoading, error, refetch: refetchQuestion } = useQuery<Question | null>(
     async () => questionRepo.findByIdWithAuthor(id!),
     { enabled: !!(id && user) }
   );
@@ -50,6 +50,9 @@ export default function QuestionDetailPage() {
     async () => answerRepo.findByQuestionWithAuthor(id!),
     { enabled: !!(id && user) }
   );
+
+  // ローディング状態（初回取得完了前はtrue）
+  const loading = questionLoading || (!question && !error);
 
   // ビュー数増加（初回のみ実行）
   useEffect(() => {
