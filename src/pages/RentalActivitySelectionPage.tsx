@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
-import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Ticket, Calendar, Users, ArrowRight, ArrowLeft, Plus, Trash2, MapPin } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 import { useQuery } from '../lib/data-access';
 import { RentalFlowRepository } from '../lib/data-access/repositories';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-type Activity = Database['public']['Tables']['activities']['Row'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Activity = Database['public']['Tables']['activities']['Row'] & { partner?: { name: string; address: string } };
 
 interface SelectedActivity {
   activity: Activity;
@@ -214,9 +215,22 @@ export default function RentalActivitySelectionPage() {
                         )}
 
                         <div className="flex-1">
-                          <h3 className="text-2xl font-semibold text-gray-800 mb-2">
+                          <h3 className="text-2xl font-semibold text-gray-800 mb-1">
                             {activity.name}
                           </h3>
+                          {activity.partner && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-orange-600">
+                                {activity.partner.name}
+                              </p>
+                              {activity.partner.address && (
+                                <p className="text-sm text-gray-500 flex items-center mt-1">
+                                  <MapPin className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                                  {activity.partner.address}
+                                </p>
+                              )}
+                            </div>
+                          )}
                           {activity.description && (
                             <p className="text-gray-600 mb-4">{activity.description}</p>
                           )}

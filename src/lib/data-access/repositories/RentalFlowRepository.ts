@@ -149,11 +149,15 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
     /**
      * 利用可能なアクティビティを取得
      */
-    async getAvailableActivities(): Promise<Result<ActivityRow[]>> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getAvailableActivities(): Promise<Result<any[]>> {
         try {
             const { data, error } = await this.client
                 .from('activities')
-                .select('*')
+                .select(`
+                    *,
+                    partner:partners(name, address)
+                `)
                 .eq('status', 'Active')
                 .order('name', { ascending: true });
 
