@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import AdminLayout from '../components/AdminLayout';
 
 import {
@@ -55,8 +56,12 @@ export default function QuestionManagementPage() {
 
   const updateStatus = async (questionId: string, newStatus: string) => {
     try {
-      const result = await questionRepo.update(questionId, { status: newStatus });
-      if (!result.success) throw result.error;
+      const { error } = await supabase
+        .from('questions')
+        .update({ status: newStatus })
+        .eq('id', questionId);
+
+      if (error) throw error;
       refetch();
     } catch (error) {
       handleError(error, 'ステータスの変更に失敗しました');
@@ -67,8 +72,12 @@ export default function QuestionManagementPage() {
     if (!selectedQuestion) return;
 
     try {
-      const result = await questionRepo.delete(selectedQuestion.id);
-      if (!result.success) throw result.error;
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', selectedQuestion.id);
+
+      if (error) throw error;
       setDeleteModalOpen(false);
       setSelectedQuestion(null);
       refetch();
