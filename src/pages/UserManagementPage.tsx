@@ -185,7 +185,93 @@ export default function UserManagementPage() {
               {filteredUsers.length}人のユーザー
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            {/* モバイル：カード表示 */}
+            <div className="md:hidden space-y-3">
+              {filteredUsers.map((u) => (
+                <div key={u.id} className="bg-white rounded-xl shadow-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center min-w-0">
+                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-3 min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
+                          {`${u.last_name} ${u.first_name}`.trim() || u.email}
+                        </div>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getRoleColor(u.role)}`}
+                        >
+                          {getRoleIcon(u.role)}
+                          <span className="ml-1">{getRoleLabel(u.role)}</span>
+                        </span>
+                      </div>
+                    </div>
+                    {editingUser?.id !== u.id && u.id !== user.id && (
+                      <button
+                        onClick={() => {
+                          setEditingUser(u);
+                          setNewRole(u.role);
+                        }}
+                        className="flex-shrink-0 p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center text-gray-700">
+                      <Mail className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
+                      <span className="truncate">{u.email}</span>
+                    </div>
+                    {u.phone_number && (
+                      <div className="text-gray-500 ml-5.5 pl-[22px]">{u.phone_number}</div>
+                    )}
+                    <div className="flex items-center text-gray-500">
+                      <Calendar className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
+                      {new Date(u.created_at).toLocaleDateString('ja-JP')} 登録
+                    </div>
+                  </div>
+
+                  {editingUser?.id === u.id && (
+                    <div className="mt-3 pt-3 border-t flex items-center gap-2">
+                      <select
+                        value={newRole}
+                        onChange={(e) => setNewRole(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option value="">選択</option>
+                        <option value="Members">ユーザー</option>
+                        <option value="Partners">協力店</option>
+                        <option value="Staff">スタッフ</option>
+                        <option value="Admin">管理者</option>
+                      </select>
+                      <button
+                        onClick={updateUserRole}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingUser(null);
+                          setNewRole('');
+                        }}
+                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  )}
+                  {u.id === user.id && (
+                    <div className="mt-2 text-xs text-gray-400">現在のユーザー</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* デスクトップ：テーブル表示 */}
+            <div className="hidden md:block bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
