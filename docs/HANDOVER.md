@@ -529,9 +529,50 @@ VITE_GOOGLE_MAPS_API_KEY=<APIキー>
 
 **設定:**
 ```env
-VITE_STRIPE_PUBLISHABLE_KEY=<公開キー>
-# Edge Function側に STRIPE_SECRET_KEY を設定
+# フロントエンド（.env / Netlify環境変数）
+VITE_STRIPE_PUBLISHABLE_KEY=<公開キー（pk_test_ or pk_live_）>
+
+# Supabase Edge Function（supabase secrets）
+STRIPE_SECRET_KEY=<シークレットキー（sk_test_ or sk_live_）>
 ```
+
+#### CORS設定
+
+Edge Function `create-payment-intent/index.ts` は以下のCORSヘッダーを設定済み:
+
+```typescript
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+};
+```
+
+**重要なポイント:**
+- `OPTIONS` リクエスト（プリフライト）に対して `200` ステータスで空レスポンスを返す
+- すべてのレスポンス（成功・エラー）に `corsHeaders` を含める
+- Edge Function が**未デプロイの場合**、Supabase がCORSヘッダーなしの404を返すため、ブラウザでCORSエラーが発生する
+
+#### Edge Function デプロイ手順
+
+```bash
+# 1. アクセストークンを取得（https://supabase.com/dashboard/account/tokens）
+
+# 2. Edge Function をデプロイ
+SUPABASE_ACCESS_TOKEN=<トークン> npx supabase functions deploy create-payment-intent --project-ref <PROJECT_REF>
+
+# 3. シークレットキーを設定
+SUPABASE_ACCESS_TOKEN=<トークン> npx supabase secrets set STRIPE_SECRET_KEY=<sk_test_xxx> --project-ref <PROJECT_REF>
+```
+
+#### トラブルシューティング
+
+| エラー | 原因 | 対処 |
+|---|---|---|
+| CORSエラー（preflight fails） | Edge Function 未デプロイ | `supabase functions deploy` を実行 |
+| 「決済システムが設定されていません」 | `VITE_STRIPE_PUBLISHABLE_KEY` 未設定 | `.env` に公開キーを追加 |
+| 400 Bad Request | `STRIPE_SECRET_KEY` 未設定 | `supabase secrets set` を実行 |
+| Stripe未設定時 | キー未設定の場合は自動的に現地決済のみ表示 | `.env` にキーを追加すればカード決済が有効化 |
 
 ---
 
