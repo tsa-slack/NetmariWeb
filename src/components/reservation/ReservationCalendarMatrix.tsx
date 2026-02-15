@@ -213,22 +213,24 @@ export default function ReservationCalendarMatrix({
                 {/* 左固定列: 車両名 */}
                 <div className="flex-shrink-0 border-r border-gray-200 z-10 bg-white">
                     {/* 空のヘッダーセル */}
-                    <div className="h-16 border-b border-gray-200 flex items-end px-3 pb-1">
+                    <div className="h-16 border-b border-gray-200 flex items-end px-2 sm:px-3 pb-1">
                         <span className="text-xs font-medium text-gray-500">車両</span>
                     </div>
                     {vehicles.map(v => (
                         <div
                             key={v.id}
-                            className="h-14 border-b border-gray-100 flex items-center px-3 min-w-[140px] max-w-[200px]"
+                            className="h-14 border-b border-gray-100 flex items-center px-2 sm:px-3 w-[90px] sm:w-[160px]"
                         >
                             <div className="truncate">
-                                <p className="text-sm font-medium text-gray-800 truncate">
+                                <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">
                                     {v.vehicle?.name || '不明'}
                                 </p>
                                 <p className="text-[10px] text-gray-400 truncate">
                                     {v.license_plate || ''}
-                                    {v.license_plate && v.vehicle?.type ? ' / ' : ''}
-                                    {v.vehicle?.type || ''}
+                                    <span className="hidden sm:inline">
+                                        {v.license_plate && v.vehicle?.type ? ' / ' : ''}
+                                        {v.vehicle?.type || ''}
+                                    </span>
                                 </p>
                             </div>
                         </div>

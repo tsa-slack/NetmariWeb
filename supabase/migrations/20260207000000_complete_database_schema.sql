@@ -814,12 +814,18 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION calculate_total_posts(user_uuid UUID)
 RETURNS INTEGER AS $$
 DECLARE
-  total_posts_count INTEGER;
+  story_count INTEGER;
+  review_count INTEGER;
 BEGIN
-  SELECT COALESCE(COUNT(*), 0) INTO total_posts_count
+  SELECT COALESCE(COUNT(*), 0) INTO story_count
   FROM stories
   WHERE author_id = user_uuid AND status = 'Published';
-  RETURN total_posts_count;
+
+  SELECT COALESCE(COUNT(*), 0) INTO review_count
+  FROM reviews
+  WHERE author_id = user_uuid AND status = 'Approved';
+
+  RETURN story_count + review_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -159,17 +159,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <Header />
 
       <div className="flex flex-1">
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="lg:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-lg shadow-lg text-gray-700 hover:bg-gray-100"
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
+        {/* Mobile Menu Button — サイドバーが閉じている時のみ表示 */}
+        {!isMobileMenuOpen && (
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-lg shadow-lg text-gray-700 hover:bg-gray-100"
+          >
             <Menu className="h-6 w-6" />
-          )}
-        </button>
+          </button>
+        )}
 
         {/* Mobile Overlay */}
         {isMobileMenuOpen && (
@@ -186,13 +184,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           }`}
         >
           <div className="h-full flex flex-col">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">
-                {isStaffMode ? 'スタッフ管理' : '管理画面'}
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {isAdmin ? '管理者' : 'スタッフ'}
-              </p>
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {isStaffMode ? 'スタッフ管理' : '管理画面'}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {isAdmin ? '管理者' : 'スタッフ'}
+                </p>
+              </div>
+              {/* モバイル: サイドバー内の閉じるボタン */}
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <nav className="flex-1 p-4 overflow-y-auto">
               <ul className="space-y-1">
