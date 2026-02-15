@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Row, Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { AnnouncementWithAuthor } from '../base/joinTypes';
 
 /**
  * お知らせリポジトリ
@@ -53,14 +55,13 @@ export class AnnouncementRepository extends BaseRepository<'announcements'> {
             return priorityB - priorityA;
         });
 
-        return { success: true, data: sorted };
+        return ResultHelper.success(sorted);
     }
 
     /**
      * 公開済みお知らせを著者情報付きで取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findPublishedWithAuthor(): Promise<Result<any[]>> {
+    async findPublishedWithAuthor(): Promise<Result<AnnouncementWithAuthor[]>> {
         try {
             const { data, error } = await this.client
                 .from(this.table)
@@ -72,12 +73,11 @@ export class AnnouncementRepository extends BaseRepository<'announcements'> {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as AnnouncementWithAuthor[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch announcements')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch announcements')
+            );
         }
     }
 }

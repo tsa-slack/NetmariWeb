@@ -1,5 +1,15 @@
 import type { Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { Json } from '../../database.types';
 import { supabase } from '../../supabase';
+
+/** システム設定の生データ型 */
+export interface SystemSettingRow {
+    key: string;
+    value: string | null;
+    description?: string | null;
+    rank_settings?: unknown;
+}
 
 /**
  * システム設定リポジトリ
@@ -20,12 +30,13 @@ export class SystemSettingsRepository {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data: data?.value || null } as const;
+            return ResultHelper.success(
+                (data as { value: string | null } | null)?.value ?? null
+            );
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch setting')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch setting')
+            );
         }
     }
 
@@ -41,25 +52,22 @@ export class SystemSettingsRepository {
             if (error) throw error;
 
             const settings: Record<string, string> = {};
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (data || []).forEach((item: any) => {
+            ((data || []) as Array<{ key: string; value: string }>).forEach((item) => {
                 settings[item.key] = item.value;
             });
 
-            return { success: true, data: settings } as const;
+            return ResultHelper.success(settings);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch settings')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch settings')
+            );
         }
     }
 
     /**
      * すべての設定を生データとして取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllRaw(): Promise<Result<any[]>> {
+    async findAllRaw(): Promise<Result<SystemSettingRow[]>> {
         try {
             const { data, error } = await (supabase
                 .from(this.table))
@@ -67,12 +75,11 @@ export class SystemSettingsRepository {
                 .order('key');
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as SystemSettingRow[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch settings')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch settings')
+            );
         }
     }
 
@@ -87,12 +94,11 @@ export class SystemSettingsRepository {
                 .eq('key', key);
 
             if (error) throw error;
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to update setting')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to update setting')
+            );
         }
     }
 
@@ -106,33 +112,30 @@ export class SystemSettingsRepository {
                 .upsert({ key, value, description }, { onConflict: 'key' });
 
             if (error) throw error;
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to upsert setting')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to upsert setting')
+            );
         }
     }
 
     /**
      * ランク設定を保存
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async updateRankSettings(targetKey: string, rankSettings: any): Promise<Result<void>> {
+    async updateRankSettings(targetKey: string, rankSettings: Record<string, unknown>): Promise<Result<void>> {
         try {
             const { error } = await (supabase
                 .from(this.table))
-                .update({ rank_settings: rankSettings })
+                .update({ rank_settings: rankSettings as unknown as Json })
                 .eq('key', targetKey);
 
             if (error) throw error;
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to update rank settings')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to update rank settings')
+            );
         }
     }
 
@@ -186,19 +189,17 @@ export class SystemSettingsRepository {
             for (const key of SystemSettingsRepository.CONTENT_KEYS) {
                 settings[key] = SystemSettingsRepository.CONTENT_DEFAULTS[key].value;
             }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (data || []).forEach((item: any) => {
+            ((data || []) as Array<{ key: string; value: string | null }>).forEach((item) => {
                 if (item.value !== null && item.value !== undefined) {
                     settings[item.key] = item.value;
                 }
             });
 
-            return { success: true, data: settings } as const;
+            return ResultHelper.success(settings);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch content settings')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch content settings')
+            );
         }
     }
 
@@ -217,12 +218,11 @@ export class SystemSettingsRepository {
                     if (error) throw error;
                 }
             }
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to save content settings')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to save content settings')
+            );
         }
     }
 }

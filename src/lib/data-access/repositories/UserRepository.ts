@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Result, Row } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { UserForAdmin } from '../base/joinTypes';
 
 /**
  * ユーザーリポジトリ
@@ -79,8 +81,7 @@ export class UserRepository extends BaseRepository<'users'> {
     /**
      * 管理用：ロールフィルタ付きでユーザー一覧を取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllFiltered(roleFilter?: string): Promise<Result<any[]>> {
+    async findAllFiltered(roleFilter?: string): Promise<Result<UserForAdmin[]>> {
         try {
             let query = this.client
                 .from(this.table)
@@ -93,12 +94,11 @@ export class UserRepository extends BaseRepository<'users'> {
 
             const { data, error } = await query;
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as UserForAdmin[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch users')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch users')
+            );
         }
     }
 }

@@ -11,6 +11,7 @@ import {
   Search,
   Star,
   Eye,
+  User,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import type { Database } from '../lib/database.types';
@@ -19,6 +20,7 @@ import {
   useQuery,
   useRepository,
 } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
 import { handleError } from '../lib/handleError';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -47,6 +49,29 @@ export default function PartnerManagementPage() {
   const { data: partners, loading: loadingPartners, refetch } = useQuery<Partner[]>(
     async () => partnerRepo.findAll(),
     { enabled: !!(user && (isAdmin || isStaff)) }
+  );
+
+  // ユーザー情報を取得（協力店に紐づいているユーザーのname/emailを表示するため）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: userMap } = useQuery<Record<string, any>>(
+    async () => {
+      const userIds = (partners || [])
+        .map((p) => p.user_id)
+        .filter((uid): uid is string => !!uid);
+      if (userIds.length === 0) return { success: true, data: {} } as const;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+      if (error) throw error;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map: Record<string, any> = {};
+      (data || []).forEach((u) => { map[u.id] = u; });
+      return { success: true, data: map } as const;
+    },
+    { enabled: !!(partners && partners.length > 0) }
   );
 
   const handleDelete = async () => {
@@ -228,6 +253,18 @@ export default function PartnerManagementPage() {
                         </p>
                       )}
                     </div>
+                    {partner.user_id && userMap?.[partner.user_id] && (
+                      <p className="text-sm text-indigo-600 flex items-center">
+                        <User className="h-4 w-4 mr-1" />
+                        {userMap[partner.user_id].last_name || ''} {userMap[partner.user_id].first_name || ''}
+                      </p>
+                    )}
+                    {!partner.user_id && (
+                      <p className="text-xs text-gray-400 flex items-center">
+                        <User className="h-3 w-3 mr-1" />
+                        アカウント未紐づけ
+                      </p>
+                    )}
 
                     <div className="flex flex-wrap gap-2">
                       <Link

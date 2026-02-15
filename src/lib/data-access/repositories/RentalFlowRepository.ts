@@ -1,6 +1,9 @@
 import { BaseRepository } from '../base/BaseRepository';
 import type { Result, Row } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { ActivityWithPartnerAddress } from '../base/joinTypes';
 import type { Json } from '../../database.types';
+import { logger } from '../../logger';
 
 /**
  * レンタルフロー専用リポジトリ
@@ -115,12 +118,11 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
             const { data, error } = await query;
 
             if (error) throw error;
-            return { success: true, data: (data || []) as RentalVehicleWithVehicle[] } as const;
+            return ResultHelper.success((data || []) as RentalVehicleWithVehicle[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch vehicles'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch vehicles')
+            );
         }
     }
 
@@ -137,20 +139,18 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 .order('name', { ascending: true });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success(data || []);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch equipment'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch equipment')
+            );
         }
     }
 
     /**
      * 利用可能なアクティビティを取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async getAvailableActivities(): Promise<Result<any[]>> {
+    async getAvailableActivities(): Promise<Result<ActivityWithPartnerAddress[]>> {
         try {
             const { data, error } = await this.client
                 .from('activities')
@@ -162,12 +162,11 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 .order('name', { ascending: true });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as unknown as ActivityWithPartnerAddress[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch activities'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch activities')
+            );
         }
     }
 
@@ -244,21 +243,17 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 }
             }
 
-            return {
-                success: true,
-                data: {
-                    vehicle: vehicleData as RentalVehicleWithVehicle | null,
-                    equipment: equipmentList,
-                    activities: activityList,
-                    userRank,
-                    discountRate,
-                },
-            } as const;
+            return ResultHelper.success({
+                vehicle: vehicleData as RentalVehicleWithVehicle | null,
+                equipment: equipmentList,
+                activities: activityList,
+                userRank,
+                discountRate,
+            });
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch confirmation data'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch confirmation data')
+            );
         }
     }
 
@@ -285,20 +280,24 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 .limit(1);
 
             if (error) throw error;
-            return { success: true, data: (data && data.length > 0) } as const;
+            return ResultHelper.success(data != null && data.length > 0);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to check overlap'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to check overlap')
+            );
         }
     }
 
     /**
      * 予約を作成（複数テーブルトランザクション）
      * reservations → reservation_equipment → reservation_activities
+     *
+     * 注意: Supabaseクライアント側にはDBトランザクションがないため、
+     * 後段で失敗した場合は補償処理（ロールバック削除）で整合性を保つ
      */
     async createReservation(params: CreateReservationParams): Promise<Result<ReservationRow>> {
+        let reservationId: string | null = null;
+
         try {
             // 1. 予約レコード作成
             const { data: reservation, error: reservationError } = await this.client
@@ -321,6 +320,7 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 .single();
 
             if (reservationError) throw reservationError;
+            reservationId = reservation.id;
 
             // 2. 装備レコード作成
             if (params.equipment.length > 0) {
@@ -357,12 +357,24 @@ export class RentalFlowRepository extends BaseRepository<'reservations'> {
                 if (activityError) throw activityError;
             }
 
-            return { success: true, data: reservation } as const;
+            return ResultHelper.success(reservation);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to create reservation'),
-            } as const;
+            // 補償処理: ステップ2以降で失敗した場合、予約レコードをロールバック削除
+            if (reservationId) {
+                try {
+                    // 関連レコードを先に削除（外部キー制約）
+                    await this.client.from('reservation_equipment').delete().eq('reservation_id', reservationId);
+                    await this.client.from('reservation_activities').delete().eq('reservation_id', reservationId);
+                    await this.client.from('reservations').delete().eq('id', reservationId);
+                    logger.info(`Compensation: rolled back reservation ${reservationId}`);
+                } catch (rollbackError) {
+                    logger.error('Compensation rollback failed:', rollbackError);
+                }
+            }
+
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to create reservation')
+            );
         }
     }
 }

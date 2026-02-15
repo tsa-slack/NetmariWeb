@@ -41,7 +41,7 @@ export function useQuery<T>(
     } = options;
 
     const [data, setData] = useState<T | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(enabled);
     const [error, setError] = useState<Error | null>(null);
 
     const isMounted = useRef(true);

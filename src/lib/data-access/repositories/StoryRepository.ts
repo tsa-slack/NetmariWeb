@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Row, Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { StoryWithAuthor, StoryForAdmin } from '../base/joinTypes';
 import { supabase } from '../../supabase';
 
 /**
@@ -36,8 +38,7 @@ export class StoryRepository extends BaseRepository<'stories'> {
     /**
      * 公開済みストーリーを取得（著者情報付き）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findPublishedWithAuthor(): Promise<Result<any[]>> {
+    async findPublishedWithAuthor(): Promise<Result<StoryWithAuthor[]>> {
         try {
             const { data, error } = await supabase
                 .from(this.table)
@@ -49,20 +50,18 @@ export class StoryRepository extends BaseRepository<'stories'> {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as StoryWithAuthor[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch published stories')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch published stories')
+            );
         }
     }
 
     /**
      * IDでストーリーを取得（著者情報付き）- 詳細ページ用
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByIdWithAuthor(id: string): Promise<Result<any>> {
+    async findByIdWithAuthor(id: string): Promise<Result<StoryWithAuthor | null>> {
         try {
             const { data, error } = await (supabase
                 .from(this.table))
@@ -74,12 +73,11 @@ export class StoryRepository extends BaseRepository<'stories'> {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data } as const;
+            return ResultHelper.success(data as StoryWithAuthor | null);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch story')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch story')
+            );
         }
     }
 
@@ -94,8 +92,7 @@ export class StoryRepository extends BaseRepository<'stories'> {
     /**
      * 管理用：著者情報付きでストーリー一覧を取得（ステータスフィルタ対応）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllForAdmin(statusFilter?: string): Promise<Result<any[]>> {
+    async findAllForAdmin(statusFilter?: string): Promise<Result<StoryForAdmin[]>> {
         try {
             let query = this.client
                 .from(this.table)
@@ -113,23 +110,24 @@ export class StoryRepository extends BaseRepository<'stories'> {
             const { data, error } = await query;
             if (error) throw error;
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const storiesWithAuthor = (data || []).map((s: any) => ({
-                ...s,
-                author: {
-                    full_name: s.author
-                        ? `${s.author.last_name || ''} ${s.author.first_name || ''}`.trim() || '不明'
-                        : '不明',
-                    email: s.author?.email || '',
-                },
-            }));
+            const storiesWithAuthor: StoryForAdmin[] = (data || []).map((s: Record<string, unknown>) => {
+                const author = s.author as { last_name?: string; first_name?: string; email?: string } | null;
+                return {
+                    ...s,
+                    author: {
+                        full_name: author
+                            ? `${author.last_name || ''} ${author.first_name || ''}`.trim() || '不明'
+                            : '不明',
+                        email: author?.email || '',
+                    },
+                } as StoryForAdmin;
+            });
 
-            return { success: true, data: storiesWithAuthor } as const;
+            return ResultHelper.success(storiesWithAuthor);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch stories')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch stories')
+            );
         }
     }
 }

@@ -9,6 +9,8 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
+  min-height: 48px;
+  line-height: 1.5;
 }
 
 .date-input::-webkit-calendar-picker-indicator {

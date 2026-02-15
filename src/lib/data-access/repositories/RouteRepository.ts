@@ -212,7 +212,6 @@ export class RouteRepository extends BaseRepository<'routes'> {
         lat: number,
         lng: number,
         radiusKm: number = 50
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): Promise<Result<Array<Row<'events'> & { distance_km: number }>>> {
         try {
             const { data, error } = await supabase
@@ -226,10 +225,10 @@ export class RouteRepository extends BaseRepository<'routes'> {
 
             const nearby = (data || [])
                 .map((event) => {
+                    const e = event as Record<string, unknown>;
                     const dist = haversineDistance(
                         lat, lng,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        Number((event as any).latitude), Number((event as any).longitude)
+                        Number(e.latitude), Number(e.longitude)
                     );
                     return { ...event, distance_km: Math.round(dist * 10) / 10 };
                 })

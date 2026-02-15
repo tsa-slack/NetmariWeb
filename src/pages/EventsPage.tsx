@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
@@ -20,7 +20,7 @@ type Event = Row<'events'> & {
 };
 
 export default function EventsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<string>('all');
   
   // リポジトリインスタンスを作成
@@ -107,10 +107,6 @@ export default function EventsPage() {
         <LoadingSpinner />
       </Layout>
     );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
   }
 
   if (error) {

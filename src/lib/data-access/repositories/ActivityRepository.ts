@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Row, Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { ActivityWithPartner } from '../base/joinTypes';
 
 /**
  * アクティビティリポジトリ
@@ -32,8 +34,7 @@ export class ActivityRepository extends BaseRepository<'activities'> {
     /**
      * 管理用：パートナー情報付きで全アクティビティを取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllWithPartner(): Promise<Result<any[]>> {
+    async findAllWithPartner(): Promise<Result<ActivityWithPartner[]>> {
         try {
             const { data, error } = await this.client
                 .from(this.table)
@@ -44,12 +45,11 @@ export class ActivityRepository extends BaseRepository<'activities'> {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as unknown as ActivityWithPartner[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch activities')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch activities')
+            );
         }
     }
 }

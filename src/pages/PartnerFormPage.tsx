@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import ConfirmModal from '../components/ConfirmModal';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 import { useQuery, useRepository, PartnerRepository } from '../lib/data-access';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { handleError } from '../lib/handleError';
@@ -43,6 +44,7 @@ export default function PartnerFormPage() {
   const [website, setWebsite] = useState('');
   const [imageUrls, setImageUrls] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string>('');
 
   const isEdit = !!id;
   const isAdmin = profile?.role === 'Admin';
@@ -72,11 +74,25 @@ export default function PartnerFormPage() {
         const images = Array.isArray(data.images) ? data.images : [];
         setImageUrls(images.join('\n'));
         setUploadedImages(images as string[]);
+        setUserId(data.user_id || '');
       }
 
       return { success: true, data };
     },
     { enabled: !!(id && isAdmin) }
+  );
+
+  // Partnersロールのユーザー一覧を取得
+  const { data: partnerUsers } = useQuery<{ id: string; email: string; first_name: string | null; last_name: string | null }[]>(
+    async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, role')
+        .eq('role', 'Partners')
+        .order('last_name', { ascending: true });
+      if (error) throw error;
+      return { success: true, data: data || [] } as const;
+    }
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,6 +134,7 @@ export default function PartnerFormPage() {
         longitude: longitude ? parseFloat(longitude) : null,
         contact,
         images: allImages,
+        user_id: userId || null,
       };
 
       if (isEdit) {
@@ -324,6 +341,31 @@ export default function PartnerFormPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">担当アカウント</h3>
+              <div>
+                <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
+                  紐づけるユーザー
+                </label>
+                <select
+                  id="userId"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">なし（未設定）</option>
+                  {(partnerUsers || []).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.last_name || ''} {u.first_name || ''} ({u.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-sm text-gray-500">
+                  ロールが「協力店」のユーザーのみ表示されます。パートナーダッシュボードへのアクセスにはユーザーの紐づけが必要です。
+                </p>
               </div>
             </div>
 

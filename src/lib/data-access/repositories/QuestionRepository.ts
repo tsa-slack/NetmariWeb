@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Row, Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { QuestionWithAuthorAndCount, QuestionForAdmin } from '../base/joinTypes';
 import { supabase } from '../../supabase';
 
 /**
@@ -14,8 +16,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
     /**
      * すべての質問を取得（著者情報と回答数付き）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllWithAuthorAndAnswerCount(): Promise<Result<any[]>> {
+    async findAllWithAuthorAndAnswerCount(): Promise<Result<QuestionWithAuthorAndCount[]>> {
         try {
             const { data, error } = await supabase
                 .from(this.table)
@@ -29,18 +30,16 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             if (error) throw error;
 
             // 回答数を集計
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const questionsWithCount = (data || []).map((q: any) => ({
+            const questionsWithCount = (data || []).map((q: Record<string, unknown>) => ({
                 ...q,
-                answer_count: q.answers?.[0]?.count ?? 0
-            }));
+                answer_count: ((q.answers as Array<{ count: number }>) ?? [])[0]?.count ?? 0
+            })) as QuestionWithAuthorAndCount[];
 
-            return { success: true, data: questionsWithCount } as const;
+            return ResultHelper.success(questionsWithCount);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch questions')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch questions')
+            );
         }
     }
 
@@ -58,8 +57,7 @@ export class QuestionRepository extends BaseRepository<'questions'> {
     /**
      * 質問を著者情報付きで取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByIdWithAuthor(id: string): Promise<Result<any>> {
+    async findByIdWithAuthor(id: string): Promise<Result<QuestionWithAuthorAndCount | null>> {
         try {
             const { data, error } = await supabase
                 .from(this.table)
@@ -71,20 +69,18 @@ export class QuestionRepository extends BaseRepository<'questions'> {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data } as const;
+            return ResultHelper.success(data as QuestionWithAuthorAndCount | null);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch question')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch question')
+            );
         }
     }
 
     /**
      * 管理用：著者情報・回答数付きで質問一覧を取得（ステータスフィルタ対応）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllForAdmin(statusFilter?: string): Promise<Result<any[]>> {
+    async findAllForAdmin(statusFilter?: string): Promise<Result<QuestionForAdmin[]>> {
         try {
             let query = this.client
                 .from(this.table)
@@ -109,29 +105,29 @@ export class QuestionRepository extends BaseRepository<'questions'> {
             if (answersError) throw answersError;
 
             const answerCountMap: Record<string, number> = {};
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            answerCounts?.forEach((answer: any) => {
+            (answerCounts || []).forEach((answer: { question_id: string }) => {
                 answerCountMap[answer.question_id] = (answerCountMap[answer.question_id] || 0) + 1;
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const questionsWithCounts = (questionsData || []).map((q: any) => ({
-                ...q,
-                author: {
-                    full_name: q.author
-                        ? `${q.author.last_name || ''} ${q.author.first_name || ''}`.trim() || '不明'
-                        : '不明',
-                    email: q.author?.email || '',
-                },
-                answer_count: answerCountMap[q.id] || 0,
-            }));
+            const questionsWithCounts: QuestionForAdmin[] = (questionsData || []).map((q: Record<string, unknown>) => {
+                const author = q.author as { last_name?: string; first_name?: string; email?: string } | null;
+                return {
+                    ...q,
+                    author: {
+                        full_name: author
+                            ? `${author.last_name || ''} ${author.first_name || ''}`.trim() || '不明'
+                            : '不明',
+                        email: author?.email || '',
+                    },
+                    answer_count: answerCountMap[(q.id as string)] || 0,
+                } as QuestionForAdmin;
+            });
 
-            return { success: true, data: questionsWithCounts } as const;
+            return ResultHelper.success(questionsWithCounts);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch questions')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch questions')
+            );
         }
     }
 }

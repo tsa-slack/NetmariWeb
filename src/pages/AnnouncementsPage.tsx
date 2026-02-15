@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { Bell, AlertCircle, Info, AlertTriangle } from 'lucide-react';
@@ -17,7 +17,7 @@ type Announcement = Row<'announcements'> & {
 };
 
 export default function AnnouncementsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<string>('all');
 
   // リポジトリインスタンスを作成
@@ -52,10 +52,6 @@ export default function AnnouncementsPage() {
         <LoadingSpinner />
       </Layout>
     );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
   }
 
   if (error) {

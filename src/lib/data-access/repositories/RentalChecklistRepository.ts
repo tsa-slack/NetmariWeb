@@ -1,5 +1,6 @@
 import { BaseRepository } from '../base/BaseRepository';
 import type { Result, Row } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
 import type { Json } from '../../database.types';
 
 /**
@@ -64,12 +65,11 @@ export class RentalChecklistRepository extends BaseRepository<'rental_checklists
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data: data as ReservationWithDetails | null } as const;
+            return ResultHelper.success(data as ReservationWithDetails | null);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch reservation'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch reservation')
+            );
         }
     }
 
@@ -84,12 +84,11 @@ export class RentalChecklistRepository extends BaseRepository<'rental_checklists
                 .eq('reservation_id', reservationId);
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success(data || []);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch checklists'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch checklists')
+            );
         }
     }
 
@@ -146,12 +145,11 @@ export class RentalChecklistRepository extends BaseRepository<'rental_checklists
                 if (error) throw error;
             }
 
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to upsert checklist'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to upsert checklist')
+            );
         }
     }
 
@@ -166,12 +164,11 @@ export class RentalChecklistRepository extends BaseRepository<'rental_checklists
                 .eq('id', reservationId);
 
             if (error) throw error;
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to complete checkout'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to complete checkout')
+            );
         }
     }
 
@@ -194,12 +191,11 @@ export class RentalChecklistRepository extends BaseRepository<'rental_checklists
 
             if (vehicleError) throw vehicleError;
 
-            return { success: true, data: undefined } as const;
+            return ResultHelper.success(undefined);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to complete return'),
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to complete return')
+            );
         }
     }
 }

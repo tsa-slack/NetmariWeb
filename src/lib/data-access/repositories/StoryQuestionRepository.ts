@@ -1,4 +1,6 @@
 import type { Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { StoryQuestionWithAnswers } from '../base/joinTypes';
 import { supabase } from '../../supabase';
 
 /**
@@ -11,8 +13,7 @@ export class StoryQuestionRepository {
     /**
      * ストーリーの質問一覧を取得（ユーザー情報と回答付き）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByStoryWithAnswers(storyId: string): Promise<Result<any[]>> {
+    async findByStoryWithAnswers(storyId: string): Promise<Result<StoryQuestionWithAnswers[]>> {
         try {
             const { data, error } = await (supabase
                 .from(this.table))
@@ -28,12 +29,11 @@ export class StoryQuestionRepository {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as StoryQuestionWithAnswers[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch questions')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch questions')
+            );
         }
     }
 }
@@ -58,12 +58,11 @@ export class StoryLikeRepository {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data: !!data } as const;
+            return ResultHelper.success(!!data);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to check like status')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to check like status')
+            );
         }
     }
 }

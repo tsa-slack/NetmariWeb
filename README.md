@@ -167,8 +167,11 @@ npm test           # Vitest テスト
 
 | ドキュメント | 内容 |
 |------------|------|
+| [docs/SYSTEM_OVERVIEW.md](./docs/SYSTEM_OVERVIEW.md) | システム概要・技術スタック・アーキテクチャ |
+| [docs/SYSTEM_DETAIL.md](./docs/SYSTEM_DETAIL.md) | 全ページ・コンポーネント・DB詳細・ER図 |
 | [docs/API.md](./docs/API.md) | API定義・認証・RLS・Stripe・権限マトリクス |
 | [docs/DATABASE.md](./docs/DATABASE.md) | テーブル定義・関数・トリガー・ER図 |
+| [docs/HANDOVER.md](./docs/HANDOVER.md) | 引継ぎドキュメント |
 | [src/lib/data-access/README.md](./src/lib/data-access/README.md) | データアクセス層の使用方法 |
 
 ---

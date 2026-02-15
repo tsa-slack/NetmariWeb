@@ -1,4 +1,6 @@
 import type { Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { EventParticipantWithUser } from '../base/joinTypes';
 import { supabase } from '../../supabase';
 
 /**
@@ -11,8 +13,7 @@ export class EventParticipantRepository {
     /**
      * イベントの参加者一覧を取得（ユーザー情報付き）
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByEventWithUser(eventId: string): Promise<Result<any[]>> {
+    async findByEventWithUser(eventId: string): Promise<Result<EventParticipantWithUser[]>> {
         try {
             const { data, error } = await (supabase
                 .from(this.table))
@@ -27,12 +28,11 @@ export class EventParticipantRepository {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as EventParticipantWithUser[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch participants')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch participants')
+            );
         }
     }
 
@@ -50,12 +50,11 @@ export class EventParticipantRepository {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data: !!data } as const;
+            return ResultHelper.success(!!data);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to check participation')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to check participation')
+            );
         }
     }
 }

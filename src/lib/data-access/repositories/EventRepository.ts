@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Result, Row } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { EventWithOrganizer, EventWithParticipantCount } from '../base/joinTypes';
 
 /**
  * イベントリポジトリ
@@ -35,20 +37,18 @@ export class EventRepository extends BaseRepository<'events'> {
     /**
      * イベントと主催者情報を取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findWithOrganizer(id: string): Promise<Result<any>> {
+    async findWithOrganizer(id: string): Promise<Result<EventWithOrganizer | null>> {
         const query = new QueryBuilder(this.table)
             .select('*, organizer:users(first_name, last_name)')
             .whereEqual('id', id);
 
-        return query.single();
+        return query.single() as Promise<Result<EventWithOrganizer | null>>;
     }
 
     /**
      * IDでイベントを取得（主催者情報付き）- 詳細ページ用
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByIdWithOrganizer(id: string): Promise<Result<any>> {
+    async findByIdWithOrganizer(id: string): Promise<Result<EventWithOrganizer | null>> {
         try {
             const { data, error } = await (this.client
                 .from(this.table))
@@ -60,17 +60,16 @@ export class EventRepository extends BaseRepository<'events'> {
                 .maybeSingle();
 
             if (error) throw error;
-            return { success: true, data };
+            return ResultHelper.success(data as EventWithOrganizer | null);
         } catch (error) {
-            return { success: false, error: this.handleError(error) };
+            return ResultHelper.error(this.handleError(error));
         }
     }
 
     /**
      * 参加者数を含むイベント一覧を取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findAllWithParticipantCount(): Promise<Result<any[]>> {
+    async findAllWithParticipantCount(): Promise<Result<EventWithParticipantCount[]>> {
         try {
             const { data, error } = await (this.client
                 .from(this.table))
@@ -81,9 +80,9 @@ export class EventRepository extends BaseRepository<'events'> {
                 .order('event_date', { ascending: false });
 
             if (error) throw error;
-            return { success: true, data: data || [] };
+            return ResultHelper.success((data || []) as EventWithParticipantCount[]);
         } catch (error) {
-            return { success: false, error: this.handleError(error) };
+            return ResultHelper.error(this.handleError(error));
         }
     }
 }

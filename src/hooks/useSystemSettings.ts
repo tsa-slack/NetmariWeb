@@ -40,6 +40,12 @@ export function useSystemSettings() {
     payment_method: 'both',
   });
 
+  const SETTINGS_KEYS = new Set<string>([
+    'rental_enabled', 'partner_registration_enabled', 'user_registration_enabled',
+    'max_rental_days', 'hero_image_url', 'hero_title', 'hero_subtitle',
+    'rental_intro_title', 'rental_intro_description', 'faq_items', 'payment_method',
+  ]);
+
   useEffect(() => {
     if (settingsData) {
       const booleanKeys = ['rental_enabled', 'partner_registration_enabled', 'user_registration_enabled'];
@@ -47,7 +53,7 @@ export function useSystemSettings() {
       const enumKeys = ['payment_method'];
       const newSettings: Partial<SystemSettings> = {};
       Object.entries(settingsData).forEach(([key, value]) => {
-        if (key in settings) {
+        if (SETTINGS_KEYS.has(key)) {
           if (booleanKeys.includes(key)) {
             (newSettings as Record<string, unknown>)[key] = value === 'true';
           } else if (numberKeys.includes(key)) {

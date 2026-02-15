@@ -1,6 +1,8 @@
 import { BaseRepository } from '../base/BaseRepository';
 import { QueryBuilder } from '../base/QueryBuilder';
 import type { Row, Result } from '../base/types';
+import { Result as ResultHelper } from '../base/types';
+import type { AnswerWithAuthor } from '../base/joinTypes';
 import { supabase } from '../../supabase';
 
 /**
@@ -14,8 +16,7 @@ export class AnswerRepository extends BaseRepository<'answers'> {
     /**
      * 質問の回答を著者情報付きで取得
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async findByQuestionWithAuthor(questionId: string): Promise<Result<any[]>> {
+    async findByQuestionWithAuthor(questionId: string): Promise<Result<AnswerWithAuthor[]>> {
         try {
             const { data, error } = await supabase
                 .from(this.table)
@@ -29,12 +30,11 @@ export class AnswerRepository extends BaseRepository<'answers'> {
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
-            return { success: true, data: data || [] } as const;
+            return ResultHelper.success((data || []) as AnswerWithAuthor[]);
         } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error : new Error('Failed to fetch answers')
-            } as const;
+            return ResultHelper.error(
+                error instanceof Error ? error : new Error('Failed to fetch answers')
+            );
         }
     }
 

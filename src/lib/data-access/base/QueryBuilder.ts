@@ -5,6 +5,9 @@ import { Result as ResultHelper } from './types';
 /**
  * クエリビルダー
  * 型安全なクエリ構築を提供
+ *
+ * Supabase の .from() は動的テーブル名（string）を受け付けないため、
+ * getTable() ヘルパーで as any キャストを1箇所に集約している。
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class QueryBuilder<T = any> {
@@ -17,6 +20,15 @@ export class QueryBuilder<T = any> {
     private relations: string[] = [];
 
     constructor(private tableName: string) { }
+
+    /**
+     * Supabase テーブルクエリを取得
+     * 動的テーブル名 → リテラル型の不一致をこの1箇所で吸収
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private getTable(): any {
+        return supabase.from(this.tableName as never);
+    }
 
     /**
      * 選択するフィールドを指定
@@ -89,7 +101,7 @@ export class QueryBuilder<T = any> {
      */
     async execute(): Promise<Result<T[]>> {
         try {
-            let query = (supabase.from(this.tableName)).select(
+            let query = this.getTable().select(
                 this.buildSelectString()
             );
 
@@ -121,7 +133,7 @@ export class QueryBuilder<T = any> {
             const { data, error } = await query;
 
             if (error) throw error;
-            return ResultHelper.success(data || []);
+            return ResultHelper.success((data || []) as T[]);
         } catch (error) {
             return ResultHelper.error(
                 error instanceof Error ? error : new Error('クエリ実行エラー')
@@ -134,7 +146,7 @@ export class QueryBuilder<T = any> {
      */
     async single(): Promise<Result<T | null>> {
         try {
-            let query = (supabase.from(this.tableName)).select(
+            let query = this.getTable().select(
                 this.buildSelectString()
             );
 
@@ -146,7 +158,7 @@ export class QueryBuilder<T = any> {
             const { data, error } = await query.maybeSingle();
 
             if (error) throw error;
-            return ResultHelper.success(data);
+            return ResultHelper.success(data as T | null);
         } catch (error) {
             return ResultHelper.error(
                 error instanceof Error ? error : new Error('クエリ実行エラー')
@@ -159,7 +171,7 @@ export class QueryBuilder<T = any> {
      */
     async count(): Promise<Result<number>> {
         try {
-            let query = (supabase.from(this.tableName)).select('*', {
+            let query = this.getTable().select('*', {
                 count: 'exact',
                 head: true,
             });

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Layout from '../components/Layout';
 import { MessageCircle, Plus, Eye, CheckCircle } from 'lucide-react';
@@ -58,10 +58,6 @@ export default function QuestionsPage() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
   if (error) {
     return (
       <Layout>
@@ -91,13 +87,15 @@ export default function QuestionsPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Q&A</h1>
             <p className="text-gray-600">コミュニティに質問して、知識を共有しよう</p>
           </div>
-          <Link
-            to="/portal/questions/new"
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            質問する
-          </Link>
+          {user && (
+            <Link
+              to="/portal/questions/new"
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              質問する
+            </Link>
+          )}
         </div>
 
         <div className="mb-6 space-y-4">
@@ -167,13 +165,15 @@ export default function QuestionsPage() {
           <div className="text-center py-12 bg-white rounded-xl shadow">
             <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">質問がありません</p>
-            <Link
-              to="/portal/questions/new"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              最初の質問を投稿
-            </Link>
+            {user && (
+              <Link
+                to="/portal/questions/new"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                最初の質問を投稿
+              </Link>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

@@ -106,6 +106,8 @@ export default function RoutePage() {
       setPublicRoutes(data || []);
     } catch (error) {
       logger.error('Error loading public routes:', error);
+      setMessage('公開ルートの読み込みに失敗しました');
+      setTimeout(() => setMessage(''), 5000);
     }
   };
 

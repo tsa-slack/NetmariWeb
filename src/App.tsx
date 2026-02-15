@@ -123,7 +123,7 @@ function App() {
                 認証必須ページ（ログインのみ必要）
                ======================================== */}
             <Route path="/vehicles/review" element={<ProtectedRoute><VehicleReviewFormPage /></ProtectedRoute>} />
-            <Route path="/rental" element={<ProtectedRoute><RentalPage /></ProtectedRoute>} />
+            <Route path="/rental" element={<RentalPage />} />
             <Route path="/rental/vehicles" element={<ProtectedRoute><RentalVehicleSelectionPage /></ProtectedRoute>} />
             <Route path="/rental/equipment" element={<ProtectedRoute><RentalEquipmentSelectionPage /></ProtectedRoute>} />
             <Route path="/rental/activities" element={<ProtectedRoute><RentalActivitySelectionPage /></ProtectedRoute>} />
@@ -136,10 +136,10 @@ function App() {
             <Route path="/portal/events/:id/edit" element={<ProtectedRoute><EventFormPage /></ProtectedRoute>} />
             <Route path="/portal/questions/new" element={<ProtectedRoute><QuestionFormPage /></ProtectedRoute>} />
             <Route path="/portal/questions/:id/edit" element={<ProtectedRoute><QuestionFormPage /></ProtectedRoute>} />
-            <Route path="/route" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
-            <Route path="/routes" element={<ProtectedRoute><RoutePage /></ProtectedRoute>} />
-            <Route path="/my" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
-            <Route path="/my-page" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+            <Route path="/route" element={<Navigate to="/routes" replace />} />
+            <Route path="/routes" element={<RoutePage />} />
+            <Route path="/my" element={<Navigate to="/mypage" replace />} />
+            <Route path="/my-page" element={<Navigate to="/mypage" replace />} />
             <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
 
             {/* ========================================

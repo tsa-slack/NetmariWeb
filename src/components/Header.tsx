@@ -196,13 +196,31 @@ export default function Header() {
                 >
                   マイページ
                 </Link>
-                {(isAdmin || isStaff) && (
+                {isAdmin && (
                   <Link
                     to="/admin"
                     className="block py-2 text-gray-700 hover:text-blue-600"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     管理画面
+                  </Link>
+                )}
+                {isStaff && !isAdmin && (
+                  <Link
+                    to="/staff"
+                    className="block py-2 text-gray-700 hover:text-blue-600"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    スタッフ
+                  </Link>
+                )}
+                {isPartner && !isAdmin && !isStaff && (
+                  <Link
+                    to="/partner/dashboard"
+                    className="block py-2 text-gray-700 hover:text-blue-600"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    協力店管理
                   </Link>
                 )}
                 <button

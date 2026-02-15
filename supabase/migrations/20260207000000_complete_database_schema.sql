@@ -965,3 +965,53 @@ DROP TRIGGER IF EXISTS trg_update_rank_on_reservation_complete ON reservations;
 CREATE TRIGGER trg_update_rank_on_reservation_complete
   AFTER INSERT OR UPDATE OF status ON reservations
   FOR EACH ROW EXECUTE FUNCTION trigger_update_rank_on_reservation_complete();
+
+-- ==========================================
+-- RPC: 予約ステータス更新（管理者用）
+-- ==========================================
+CREATE OR REPLACE FUNCTION update_reservation_status(
+    reservation_id uuid,
+    new_status text
+)
+RETURNS void AS $$
+DECLARE
+    user_role text;
+BEGIN
+    SELECT role INTO user_role
+    FROM users
+    WHERE id = auth.uid();
+
+    IF user_role NOT IN ('Admin', 'Staff') THEN
+        RAISE EXCEPTION 'Permission denied: requires Admin or Staff role';
+    END IF;
+
+    UPDATE reservations
+    SET status = new_status,
+        updated_at = now()
+    WHERE id = reservation_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Reservation not found: %', reservation_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==========================================
+-- route_stops: 書き込み用 RLS ポリシー
+-- ==========================================
+CREATE POLICY "Users manage own route stops" ON route_stops
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM routes
+      WHERE routes.id = route_stops.route_id
+      AND routes.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM routes
+      WHERE routes.id = route_stops.route_id
+      AND routes.user_id = auth.uid()
+    )
+  );
