@@ -668,6 +668,7 @@ CREATE TABLE IF NOT EXISTS route_stops (
 
 ALTER TABLE route_stops ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Visible if route is visible" ON route_stops FOR SELECT USING (EXISTS (SELECT 1 FROM routes WHERE id = route_stops.route_id AND (is_public = true OR user_id = auth.uid())));
+CREATE POLICY "Users manage own route stops" ON route_stops FOR ALL USING (EXISTS (SELECT 1 FROM routes WHERE routes.id = route_stops.route_id AND routes.user_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM routes WHERE routes.id = route_stops.route_id AND routes.user_id = auth.uid()));
 
 -- ============================================================================
 -- 10. OPERATIONS

@@ -14,6 +14,7 @@ export interface PlaceResult {
 
 interface PlaceAutocompleteProps {
   onPlaceSelect: (place: PlaceResult) => void;
+  onTextChange?: (value: string) => void;
   placeholder?: string;
   defaultValue?: string;
   label?: string;
@@ -24,6 +25,7 @@ interface PlaceAutocompleteProps {
 
 export default function PlaceAutocomplete({
   onPlaceSelect,
+  onTextChange,
   placeholder = '施設名を入力して検索',
   defaultValue = '',
   label,
@@ -121,6 +123,7 @@ export default function PlaceAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
+    onTextChange?.(value);
 
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -226,6 +229,7 @@ export default function PlaceAutocomplete({
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
+            onTextChange?.(e.target.value);
           }}
           placeholder={placeholder}
           required={required}
