@@ -1,5 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSidebar } from '../contexts/SidebarContext';
 import { useSystemSettings } from '../hooks/useSystemSettings';
 import { Car, Menu, X, User, LogOut, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { logger } from '../lib/logger';
 export default function Header() {
   const { user, profile, signOut, isAdmin, isStaff, isPartner } = useAuth();
   const { settings } = useSystemSettings();
+  const { hasSidebar, isSidebarOpen, setSidebarOpen } = useSidebar();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -26,24 +28,32 @@ export default function Header() {
     }
   };
 
+  // admin/staff ページではサイドバー開閉、それ以外ではナビメニュー開閉
+  const isMenuOpen = hasSidebar ? isSidebarOpen : mobileMenuOpen;
+  const toggleMenu = () => {
+    if (hasSidebar) {
+      setSidebarOpen(!isSidebarOpen);
+    } else {
+      setMobileMenuOpen(!mobileMenuOpen);
+    }
+  };
+
   return (
     <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            {/* モバイル: ハンバーガー（左端）— admin/staff ページでは非表示（AdminLayoutが独自メニューを持つ） */}
-            {!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') && (
-              <button
-                className="md:hidden mr-3"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? (
-                  <X className="h-6 w-6 text-gray-700" />
-                ) : (
-                  <Menu className="h-6 w-6 text-gray-700" />
-                )}
-              </button>
-            )}
+            {/* モバイル: ハンバーガー（左端）— 常に同じ位置 */}
+            <button
+              className="md:hidden mr-3 lg:hidden"
+              onClick={toggleMenu}
+            >
+              {isMenuOpen ? (
+                <X className="h-6 w-6 text-gray-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-700" />
+              )}
+            </button>
             <Link to="/" className="flex items-center space-x-2">
               <Car className="h-8 w-8 text-blue-600" />
               <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
@@ -150,7 +160,7 @@ export default function Header() {
           )}
         </div>
 
-        {mobileMenuOpen && (
+        {mobileMenuOpen && !hasSidebar && (
           <div className="md:hidden py-4 space-y-2 border-t border-gray-200">
             <Link
               to="/vehicles"

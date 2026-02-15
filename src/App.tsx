@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import { Toaster } from 'sonner';
 import LoadingSpinner from './components/LoadingSpinner';
 import ScrollToTop from './components/ScrollToTop';
@@ -87,6 +88,7 @@ const PartnerDashboardPage = lazy(() => import('./pages/PartnerDashboardPage'));
 function App() {
   return (
     <AuthProvider>
+      <SidebarProvider>
       <BrowserRouter>
         <ScrollToTop />
         <Suspense fallback={<LoadingSpinner />}>
@@ -194,6 +196,7 @@ function App() {
         </Suspense>
         <Toaster position="top-right" richColors />
       </BrowserRouter>
+      </SidebarProvider>
     </AuthProvider>
   );
 }

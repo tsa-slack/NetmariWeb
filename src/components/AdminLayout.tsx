@@ -1,6 +1,7 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSidebar } from '../contexts/SidebarContext';
 import Header from './Header';
 import Footer from './Footer';
 import {
@@ -13,7 +14,6 @@ import {
   Mail,
   TrendingUp,
   Settings,
-  Menu,
   X,
   Calendar,
   Package,
@@ -33,15 +33,25 @@ interface NavItem {
   label: string;
   icon: ReactNode;
   adminOnly?: boolean;
-  staffVisible?: boolean; // スタッフにも表示するか
+  staffVisible?: boolean;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const { isAdmin } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isSidebarOpen, setSidebarOpen, registerSidebar, unregisterSidebar } = useSidebar();
 
-  // 現在のパスからスタッフモードかどうか判定
+  // マウント時にサイドバーを登録、アンマウント時に解除
+  useEffect(() => {
+    registerSidebar();
+    return () => unregisterSidebar();
+  }, [registerSidebar, unregisterSidebar]);
+
+  // ページ遷移時にサイドバーを閉じる
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname, setSidebarOpen]);
+
   const isStaffMode = location.pathname.startsWith('/staff');
   const basePath = isStaffMode ? '/staff' : '/admin';
 
@@ -144,10 +154,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     },
   ];
 
-  // ロールに応じてフィルタ:
-  // Admin: すべて表示
-  // Staff (admin画面): adminOnly以外を表示
-  // Staff (staff画面): staffVisible のみ表示
   const filteredNavItems = navItems.filter((item) => {
     if (isAdmin) return true;
     if (isStaffMode) return item.staffVisible === true;
@@ -159,28 +165,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <Header />
 
       <div className="flex flex-1">
-        {/* Mobile Menu Button — サイドバーが閉じている時のみ表示 */}
-        {!isMobileMenuOpen && (
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="lg:hidden fixed top-20 left-4 z-50 p-2 bg-white rounded-lg shadow-lg text-gray-700 hover:bg-gray-100"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-        )}
-
         {/* Mobile Overlay */}
-        {isMobileMenuOpen && (
+        {isSidebarOpen && (
           <div
             className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 mt-16"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar */}
         <aside
           className={`fixed lg:static top-16 bottom-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
         >
           <div className="h-full flex flex-col">
@@ -195,7 +191,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </div>
               {/* モバイル: サイドバー内の閉じるボタン */}
               <button
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => setSidebarOpen(false)}
                 className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
               >
                 <X className="h-5 w-5" />
@@ -211,7 +207,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <li key={item.path}>
                       <Link
                         to={item.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        onClick={() => setSidebarOpen(false)}
                         className={`flex items-center px-4 py-3 rounded-lg transition ${
                           isActive
                             ? 'bg-blue-600 text-white'
